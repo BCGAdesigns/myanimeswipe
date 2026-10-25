@@ -10,6 +10,8 @@ export interface ActionStyle {
   color: string
   /** Fly-out direction, unit-ish vector (x right, y down). */
   vector: [number, number]
+  /** Instead of flying off, celebrate on the card for `holdMs`, then fade out gently. */
+  burst?: { emoji: string; caption: string; holdMs: number }
 }
 
 interface Props<T extends string> {
@@ -25,6 +27,7 @@ interface Props<T extends string> {
 }
 
 const FLING_MS = 220
+const EXIT_MS = 450
 const DOUBLE_TAP_MS = 250
 const LONG_PRESS_MS = 500
 /** Finger travel that still counts as holding still (long press) or tapping. */
@@ -43,26 +46,38 @@ export function SwipeCard<T extends string>({
   const [pos, setPos] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
   const [leaving, setLeaving] = useState<T | null>(null)
+  const [exiting, setExiting] = useState(false)
   const start = useRef<{ x: number; y: number; t: number; id: number } | null>(null)
   const lastTap = useRef(0)
   const tapTimer = useRef<number | undefined>(undefined)
   const pressTimer = useRef<number | undefined>(undefined)
+  const exitTimers = useRef<number[]>([])
 
   useEffect(
     () => () => {
       window.clearTimeout(tapTimer.current)
       window.clearTimeout(pressTimer.current)
+      exitTimers.current.forEach((t) => window.clearTimeout(t))
     },
     [],
   )
 
   const fling = (action: T) => {
     if (leaving) return
+    setLeaving(action)
+    const burst = styles[action].burst
+    if (burst) {
+      setPos({ x: 0, y: 0 })
+      exitTimers.current.push(
+        window.setTimeout(() => setExiting(true), burst.holdMs),
+        window.setTimeout(() => onAction(action), burst.holdMs + EXIT_MS),
+      )
+      return
+    }
     const [vx, vy] = styles[action].vector
     const dist = Math.max(window.innerWidth, window.innerHeight) * 1.2
-    setLeaving(action)
     setPos({ x: vx * dist, y: vy * dist })
-    window.setTimeout(() => onAction(action), FLING_MS)
+    exitTimers.current.push(window.setTimeout(() => onAction(action), FLING_MS))
   }
 
   useImperativeHandle(ref, () => ({ fling }))
@@ -136,13 +151,21 @@ export function SwipeCard<T extends string>({
   const preview = leaving ?? (Math.hypot(pos.x, pos.y) > 24 ? classify(pos.x, pos.y, 0) : null)
   const previewOpacity = leaving ? 1 : Math.min(1, Math.hypot(pos.x, pos.y) / SWIPE_THRESHOLD)
   const style = preview ? styles[preview] : null
+  const burst = leaving ? styles[leaving].burst : undefined
 
   return (
     <div
-      className="swipe-card"
+      className={`swipe-card${burst ? ' celebrating' : ''}${exiting ? ' exiting' : ''}`}
       style={{
-        transform: `translate(${pos.x}px, ${pos.y}px) rotate(${pos.x / 18}deg)`,
-        transition: dragging ? 'none' : `transform ${FLING_MS}ms ease-out`,
+        transform: exiting
+          ? 'translateY(-24px) scale(0.94)'
+          : `translate(${pos.x}px, ${pos.y}px) rotate(${pos.x / 18}deg)`,
+        transition: dragging
+          ? 'none'
+          : exiting
+            ? `transform ${EXIT_MS}ms ease-in, opacity ${EXIT_MS}ms ease-in`
+            : `transform ${FLING_MS}ms ease-out`,
+        ['--celebrate' as string]: burst ? style?.color : undefined,
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -152,10 +175,19 @@ export function SwipeCard<T extends string>({
       onContextMenu={(e) => e.preventDefault()}
     >
       {children}
-      {style && (
-        <div className="swipe-label" style={{ opacity: previewOpacity, borderColor: style.color, color: style.color }}>
-          {style.text}
+      {burst ? (
+        <div className="burst">
+          <span className="burst-emoji">{burst.emoji}</span>
+          <span className="burst-caption" style={{ color: style?.color }}>
+            {burst.caption}
+          </span>
         </div>
+      ) : (
+        style && (
+          <div className="swipe-label" style={{ opacity: previewOpacity, borderColor: style.color, color: style.color }}>
+            {style.text}
+          </div>
+        )
       )}
     </div>
   )

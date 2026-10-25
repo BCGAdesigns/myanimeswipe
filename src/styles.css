@@ -637,3 +637,74 @@ nav .count {
   background: var(--surface-2);
   color: var(--text);
 }
+
+/* Liked / favorite celebration: the card stays, the emoji pops, then it fades out gently. */
+
+.swipe-card.celebrating .media-card {
+  box-shadow: 0 0 0 3px var(--celebrate), 0 0 36px color-mix(in srgb, var(--celebrate) 55%, transparent);
+  transition: box-shadow 300ms ease-out;
+}
+
+.swipe-card.exiting {
+  opacity: 0;
+}
+
+.burst {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(0, 0, 0, 0.35), transparent 65%);
+}
+
+.burst-emoji {
+  font-size: 6.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 6px 22px rgba(0, 0, 0, 0.5));
+  animation: burst-pop 650ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+
+.burst-caption {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+  animation: burst-rise 500ms 180ms ease-out both;
+}
+
+@keyframes burst-pop {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes burst-rise {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .burst-emoji,
+  .burst-caption {
+    animation: none;
+  }
+}

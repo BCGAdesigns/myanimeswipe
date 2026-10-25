@@ -14,8 +14,20 @@ export const ACTION_STYLES: Record<SwipeAction, ActionStyle & { icon: string }> 
   dropped: { text: 'LARGUEI', color: '#fb7185', vector: [-0.71, 0.71], icon: '↙' },
   skip: { text: 'PULAR', color: '#9ca3af', vector: [-1, 0], icon: '←' },
   paused: { text: 'EM PAUSA', color: '#38bdf8', vector: [-0.71, -0.71], icon: '↖' },
-  liked: { text: 'GOSTEI ♥', color: '#22c55e', vector: [0.5, -0.87], icon: '♥' },
-  favorite: { text: 'FAVORITO ⭐', color: '#facc15', vector: [0, -1], icon: '⭐' },
+  liked: {
+    text: 'GOSTEI',
+    color: '#22c55e',
+    vector: [0.5, -0.87],
+    icon: '♥',
+    burst: { emoji: '❤️', caption: 'Gostei!', holdMs: 750 },
+  },
+  favorite: {
+    text: 'FAVORITO',
+    color: '#facc15',
+    vector: [0, -1],
+    icon: '⭐',
+    burst: { emoji: '⭐', caption: 'Amei! Favorito', holdMs: 950 },
+  },
 }
 
 const KEYS: Record<string, SwipeAction> = {
@@ -135,7 +147,10 @@ export function SwipeDeck({ ids, via, empty }: Props) {
             styles={ACTION_STYLES}
             onAction={(a) => swipe(top.id, a, via)}
             onTap={() => setDetails((d) => !d)}
-            onDoubleTap={() => cardRef.current?.fling('liked')}
+            onDoubleTap={() => {
+              navigator.vibrate?.(15)
+              cardRef.current?.fling('liked')
+            }}
             onLongPress={() => cardRef.current?.fling('favorite')}
           >
             <MediaCard media={top} showDetails={details} />
