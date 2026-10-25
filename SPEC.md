@@ -10,7 +10,7 @@ App estilo Tinder para catalogar animes: marcar o que já viu, o que quer ver e 
 
 * **PWA** (site instalável no celular), mobile first, funciona também no desktop.
 * Stack: Vite + React + TypeScript. **ASSUMPTION** (escolha de stack minha).
-* Hospedagem: Vercel, pela integração com o GitHub. Cada push no branch padrão vira deploy de produção; os outros branches geram previews. O build usa `base: './'`, então roda em qualquer host ou subpasta.
+* Hospedagem: Vercel, projeto `myanimeswipe`, produção em https://myanimeswipe.vercel.app. O deploy automático a cada push depende de ligar o repositório ao projeto (Settings → Git); até lá, os deploys são disparados a partir do repo público. O build usa `base: './'`, então roda em qualquer host ou subpasta.
 * CI: o workflow `.github/workflows/ci.yml` roda testes e build em todo push.
 
 ## Fonte de dados

@@ -18,12 +18,9 @@ Para abrir no celular durante o desenvolvimento: `npm run dev -- --host` e acess
 
 ## Publicar
 
-Hospedado na Vercel, que publica sozinha a cada push. Configuração (uma vez só):
+Produção: https://myanimeswipe.vercel.app (projeto `myanimeswipe` na Vercel). Abra no celular e use "Adicionar à tela inicial" para instalar.
 
-1. Em https://vercel.com/new, entre com a conta do GitHub e importe `BCGAdesigns/myanimeswipe`.
-2. Mantenha o que a Vercel detectar (Framework Preset: Vite, saída em `dist`) e toque em **Deploy**.
-
-O branch padrão do repositório vira produção; pushes em outros branches geram previews com URL própria. O endereço de produção aparece no painel da Vercel. Abra no celular e use "Adicionar à tela inicial" para instalar.
+O projeto ainda não está ligado ao repositório, então um push não publica sozinho; cada deploy é disparado a partir do repo público (pelo conector da Vercel no Claude). Para ativar o deploy automático (uma vez só): no painel da Vercel, abra o projeto, vá em **Settings → Git → Connect Git Repository**, escolha GitHub, instale o app da Vercel quando pedir e selecione `BCGAdesigns/myanimeswipe`. A partir daí, cada push no branch padrão vira deploy de produção e os outros branches geram previews.
 
 O workflow `.github/workflows/ci.yml` roda testes e build em todo push.
 
