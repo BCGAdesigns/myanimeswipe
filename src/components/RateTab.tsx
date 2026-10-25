@@ -1,24 +1,48 @@
 import { Check, ChevronLeft, Star, Undo2 } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { arrangeEntries } from '../library'
-import { classifyRateSwipe, rateQueue, ratedList } from '../logic'
+import { classifyRateSwipe, rateQueue, ratedList, rateVector } from '../logic'
+import { fromStars, STARS, toStars } from '../rating'
 import { useStore } from '../store'
 import { LibraryControls, usePersistentView } from './LibraryControls'
 import { Cover, coverThumb, metaLine } from './MediaCard'
 import { SwipeCard, type ActionStyle, type SwipeCardHandle } from './SwipeCard'
 
-type RateAction = 'confirm' | 'skip'
+type RateKey = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8'
+type RateAction = RateKey | 'skip'
 
-const RATE_STYLES: Record<RateAction, ActionStyle> = {
-  confirm: { text: 'CONFIRMAR', color: '#4ade80', vector: [1, 0], icon: <Check strokeWidth={2.6} /> },
+/** Red for 1 through yellow to green for 8. */
+export const starHue = (stars: number) => Math.round(((stars - 1) * 120) / 7)
+
+const RATE_STYLES = {
+  ...Object.fromEntries(
+    STARS.map((n) => [
+      String(n),
+      { text: String(n), color: `hsl(${starHue(n)} 80% 66%)`, vector: rateVector(n), icon: <Star strokeWidth={2.6} fill="currentColor" /> },
+    ]),
+  ),
   skip: { text: 'PULAR', color: '#9ca3af', vector: [-1, 0], icon: <ChevronLeft strokeWidth={2.6} /> },
-}
+} as Record<RateAction, ActionStyle>
 
-const SCORES = Array.from({ length: 11 }, (_, i) => i)
+/** Each number sits around the card where its drag goes. */
+const DIAL: { stars: number; area: string; arrow: string }[] = [
+  { stars: 6, area: 'nw', arrow: '↖' },
+  { stars: 8, area: 'n', arrow: '↑' },
+  { stars: 7, area: 'ne', arrow: '↗' },
+  { stars: 4, area: 'w', arrow: '←' },
+  { stars: 5, area: 'e', arrow: '→' },
+  { stars: 2, area: 'sw', arrow: '↙' },
+  { stars: 1, area: 's', arrow: '↓' },
+  { stars: 3, area: 'se', arrow: '↘' },
+]
+
+const keyOf = (stars: number) => String(stars) as RateKey
 
 export function RateTab() {
   const { entries, media, rate, skipRating, undo, canUndo } = useStore()
   const [editingId, setEditingId] = useState<string | null>(null)
+  /** The rating the drag points at right now. */
+  const [aim, setAim] = useState<number | null>(null)
   const cardRef = useRef<SwipeCardHandle<RateAction>>(null)
   const topRef = useRef<HTMLDivElement>(null)
 
@@ -29,31 +53,54 @@ export function RateTab() {
 
   const current = editingId ? entries.get(editingId) : queue[0]
   const currentMedia = current ? media.get(current.mediaId) : undefined
-  const highlighted = current ? (editingId ? current.rating : null) ?? current.suggestedRating : null
+  const stored = current ? ((editingId ? current.rating : null) ?? current.suggestedRating) : null
+  const highlighted = stored === null ? null : toStars(stored)
 
-  // Right swipe only confirms when there is a highlighted score to confirm.
-  const classify = (dx: number, dy: number, threshold?: number) => {
-    const a = classifyRateSwipe(dx, dy, threshold)
-    return a === 'confirm' && highlighted === null ? null : a
+  // Typed with skip too, so the card also knows the Pular fling.
+  const classify = (dx: number, dy: number, threshold?: number): RateAction | null => {
+    const stars = classifyRateSwipe(dx, dy, threshold)
+    return stars === null ? null : keyOf(stars)
   }
 
   const onAction = (a: RateAction) => {
+    setAim(null)
     if (!current) return
-    if (a === 'confirm' && highlighted !== null) rate(current.mediaId, highlighted)
-    else if (a === 'skip' && !editingId) skipRating(current.mediaId)
+    if (a === 'skip') {
+      if (!editingId) skipRating(current.mediaId)
+    } else {
+      navigator.vibrate?.(8)
+      rate(current.mediaId, fromStars(Number(a)))
+    }
     setEditingId(null)
   }
 
-  const pick = (score: number) => {
-    if (!current) return
-    rate(current.mediaId, score)
-    setEditingId(null)
+  const confirm = () => {
+    if (highlighted !== null) cardRef.current?.fling(keyOf(highlighted))
   }
 
   const startEdit = (id: string) => {
     setEditingId(id)
     topRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
+
+  // Desktop: number keys rate, Enter confirms the suggestion, P skips, Z undoes.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target
+      if (t instanceof HTMLInputElement || t instanceof HTMLSelectElement || t instanceof HTMLTextAreaElement) return
+      if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector('[aria-modal="true"]')) return
+      const card = cardRef.current
+      if (e.key === 'z') undo()
+      else if (!card) return
+      else if (/^[1-8]$/.test(e.key)) card.fling(e.key as RateKey)
+      else if (e.key === 'Enter' && highlighted !== null) card.fling(keyOf(highlighted))
+      else if (e.key === 'p') card.fling('skip')
+      else return
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [highlighted, undo])
 
   return (
     <div className="rate-tab">
@@ -62,44 +109,47 @@ export function RateTab() {
           <>
             <p className="rate-count">
               <span>{editingId ? 'Mudando a nota' : `${queue.length} ${queue.length === 1 ? 'título' : 'títulos'} para avaliar`}</span>
-              <span>Arraste: → confirma, ← pula</span>
+              <span>{highlighted !== null ? 'Toque 2× para confirmar' : 'Arraste para a nota'}</span>
             </p>
-            <div className="rate-deck">
-              <SwipeCard
-                key={`${current.mediaId}-${current.queuedAt}-${editingId ?? ''}`}
-                ref={cardRef}
-                classify={classify}
-                styles={RATE_STYLES}
-                onAction={onAction}
-              >
-                <div className="rate-card">
-                  <Cover src={currentMedia.cover} />
-                  <div>
-                    <h2>
-                      {current.favorite && <Star className="fav-star" size={16} fill="currentColor" />} {currentMedia.title}
-                    </h2>
-                    <p className="meta">{metaLine(currentMedia, true)}</p>
-                    {highlighted !== null && (
-                      <p className="suggested">
-                        {editingId ? 'Nota atual' : 'Nota sugerida'}: <strong>{highlighted}</strong>
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </SwipeCard>
-            </div>
-            <div className="score-grid">
-              {SCORES.map((s) => (
+            <div className="rate-dial">
+              {DIAL.map((d) => (
                 <button
-                  key={s}
-                  className={s === highlighted ? 'score active' : 'score'}
-                  style={{ ['--s' as string]: s }}
-                  aria-label={`Nota ${s}`}
-                  onClick={() => pick(s)}
+                  key={d.stars}
+                  className={`dial-btn ${d.area}${d.stars === highlighted ? ' is-suggested' : ''}${d.stars === aim ? ' is-aim' : ''}`}
+                  style={{ ['--s' as string]: d.stars }}
+                  aria-label={`Nota ${d.stars}`}
+                  title={`${d.arrow} nota ${d.stars}`}
+                  onClick={() => cardRef.current?.fling(keyOf(d.stars))}
                 >
-                  {s}
+                  {d.stars}
                 </button>
               ))}
+              <div className="rate-deck">
+                <SwipeCard
+                  key={`${current.mediaId}-${current.queuedAt}-${editingId ?? ''}`}
+                  ref={cardRef}
+                  classify={classify}
+                  styles={RATE_STYLES}
+                  onAction={onAction}
+                  onPreview={(a) => setAim(a && a !== 'skip' ? Number(a) : null)}
+                  onDoubleTap={confirm}
+                >
+                  <div className="rate-card">
+                    <Cover src={currentMedia.cover} />
+                    <div>
+                      <h2>
+                        {current.favorite && <Star className="fav-star" size={16} fill="currentColor" />} {currentMedia.title}
+                      </h2>
+                      <p className="meta">{metaLine(currentMedia, true)}</p>
+                      {highlighted !== null && (
+                        <p className="suggested">
+                          {editingId ? 'Nota atual' : 'Sugestão'}: <strong>{highlighted}</strong>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </SwipeCard>
+              </div>
             </div>
             <div className="rate-actions">
               <button onClick={() => cardRef.current?.fling('skip')}>
@@ -108,12 +158,8 @@ export function RateTab() {
               <button disabled={!canUndo} onClick={() => undo()}>
                 <Undo2 /> Desfazer
               </button>
-              <button
-                className={highlighted === null ? undefined : 'primary'}
-                disabled={highlighted === null}
-                onClick={() => cardRef.current?.fling('confirm')}
-              >
-                <Check /> Confirmar
+              <button className={highlighted === null ? undefined : 'primary'} disabled={highlighted === null} onClick={confirm}>
+                <Check /> {highlighted === null ? 'Confirmar' : `Confirmar ${highlighted}`}
               </button>
             </div>
           </>
@@ -123,7 +169,7 @@ export function RateTab() {
               ⭐
             </p>
             <h2>Tudo avaliado</h2>
-            <p>O que você marcar como já visto aparece aqui para receber nota de 0 a 10.</p>
+            <p>O que você marcar como já visto aparece aqui para receber nota de 1 a 8, arrastando na direção da nota.</p>
             {canUndo && (
               <button onClick={() => undo()}>
                 <Undo2 size={16} /> Desfazer
@@ -148,7 +194,8 @@ export function RateTab() {
           <ul>
             {rated.map((e) => {
               const m = media.get(e.mediaId)
-              if (!m) return null
+              if (!m || e.rating === null) return null
+              const stars = toStars(e.rating)
               return (
                 <li key={e.mediaId}>
                   <button onClick={() => startEdit(e.mediaId)}>
@@ -159,8 +206,8 @@ export function RateTab() {
                       </span>
                       <small>{metaLine(m, true)}</small>
                     </span>
-                    <span className="rated-score" style={{ ['--s' as string]: e.rating ?? 0 }}>
-                      {e.rating}
+                    <span className="rated-score" style={{ ['--s' as string]: stars }}>
+                      {stars}
                     </span>
                   </button>
                 </li>

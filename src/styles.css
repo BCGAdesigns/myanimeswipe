@@ -931,6 +931,93 @@ main {
   height: 196px;
 }
 
+/* Rating dial: each number sits around the card where its drag goes. */
+.rate-dial {
+  display: grid;
+  grid-template-columns: 46px 1fr 46px;
+  grid-template-rows: 46px 196px 46px;
+  grid-template-areas:
+    'nw n ne'
+    'w deck e'
+    'sw s se';
+  gap: 6px;
+}
+
+.rate-dial .rate-deck {
+  grid-area: deck;
+  height: auto;
+  z-index: 2;
+}
+
+.dial-btn {
+  --hue: calc((var(--s) - 1) * 17.14);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 14px;
+  border-color: hsl(var(--hue) 70% 60% / 0.22);
+  background: hsl(var(--hue) 70% 55% / 0.09);
+  color: hsl(var(--hue) 85% 70%);
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  transition:
+    transform 160ms var(--ease-out),
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease;
+}
+
+.dial-btn:hover:not(:disabled) {
+  background: hsl(var(--hue) 70% 55% / 0.2);
+}
+
+.dial-btn.nw {
+  grid-area: nw;
+}
+
+.dial-btn.n {
+  grid-area: n;
+}
+
+.dial-btn.ne {
+  grid-area: ne;
+}
+
+.dial-btn.w {
+  grid-area: w;
+}
+
+.dial-btn.e {
+  grid-area: e;
+}
+
+.dial-btn.sw {
+  grid-area: sw;
+}
+
+.dial-btn.s {
+  grid-area: s;
+}
+
+.dial-btn.se {
+  grid-area: se;
+}
+
+.dial-btn.is-suggested {
+  border-color: hsl(var(--hue) 70% 60% / 0.75);
+  background: hsl(var(--hue) 70% 55% / 0.24);
+}
+
+.dial-btn.is-aim {
+  border-color: transparent;
+  background: hsl(var(--hue) 70% 55%);
+  color: #0b0c10;
+  transform: scale(1.08);
+  box-shadow: 0 8px 22px hsl(var(--hue) 70% 40% / 0.45);
+}
+
 .rate-card {
   display: flex;
   gap: 14px;
@@ -979,13 +1066,13 @@ main {
 
 .score-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
   margin-top: 16px;
 }
 
 .score {
-  --hue: calc(var(--s) * 12);
+  --hue: calc((var(--s) - 1) * 17.14);
   padding: 13px 0;
   border-radius: 14px;
   font-size: 1.1rem;
@@ -1073,7 +1160,7 @@ main {
 }
 
 .rated-score {
-  --hue: calc(var(--s) * 12);
+  --hue: calc((var(--s) - 1) * 17.14);
   min-width: 34px;
   text-align: center;
   font-weight: 800;
@@ -2755,7 +2842,7 @@ span.friend {
 }
 
 .take-chip.rated {
-  --hue: calc(var(--s) * 12);
+  --hue: calc((var(--s) - 1) * 17.14);
   background: hsl(var(--hue) 70% 55% / 0.16);
   color: hsl(var(--hue) 85% 72%);
   font-size: 0.85rem;

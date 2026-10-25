@@ -20,13 +20,24 @@ export function classifySwipe(dx: number, dy: number, threshold = SWIPE_THRESHOL
   return COMPASS[(Math.round(angle / 45) + 8) % 8]
 }
 
-/** Rating tab only knows two gestures: right confirms, left skips. */
-export function classifyRateSwipe(dx: number, dy: number, threshold = SWIPE_THRESHOLD): 'confirm' | 'skip' | null {
+/**
+ * Rating tab: the eight directions are the ratings 1 to 8. Higher on the screen is better, and at
+ * the same height right is one more than left (↑ 8, ↗ 7, ↖ 6, → 5, ← 4, ↘ 3, ↙ 2, ↓ 1). Next to each
+ * other the ratings differ by 2 at most, so a drag slightly off its direction stays close.
+ */
+const RATE_COMPASS = [5, 7, 8, 6, 4, 2, 1, 3]
+
+export function classifyRateSwipe(dx: number, dy: number, threshold = SWIPE_THRESHOLD): number | null {
   if (Math.hypot(dx, dy) < threshold) return null
-  const angle = Math.abs((Math.atan2(-dy, dx) * 180) / Math.PI)
-  if (angle <= 67.5) return 'confirm'
-  if (angle >= 112.5) return 'skip'
-  return null
+  const angle = (Math.atan2(-dy, dx) * 180) / Math.PI
+  return RATE_COMPASS[(Math.round(angle / 45) + 8) % 8]
+}
+
+/** Screen direction (x right, y down) of the drag that gives each rating. */
+export function rateVector(stars: number): [number, number] {
+  const i = RATE_COMPASS.indexOf(stars)
+  const rad = (i * 45 * Math.PI) / 180
+  return [Math.round(Math.cos(rad) * 100) / 100, Math.round(-Math.sin(rad) * 100) / 100]
 }
 
 export function applyAction(

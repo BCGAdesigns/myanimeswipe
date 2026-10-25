@@ -1,6 +1,7 @@
 // Phase 2 recommender, no AI: community "watch next" lists (AniList votes, TMDB recommendations)
 // seeded by what the user liked, blended with a genre and tag taste profile and the title's score.
 import { filterHash, type Preferences } from '../prefs'
+import { toStars } from '../rating'
 import type { Recommendation } from '../sources/anilist'
 import { passesFilters } from '../sources/catalog'
 import { anilistSites } from '../sources/providers'
@@ -127,7 +128,7 @@ export function reasonFor(seed: Seed): string {
   const title = seed.media.title
   if (seed.entry.favorite) return `Porque você favoritou ${title}`
   if (seed.entry.status === 'watching') return `Porque você está assistindo ${title}`
-  if (seed.entry.rating !== null) return `Porque você deu ${seed.entry.rating} para ${title}`
+  if (seed.entry.rating !== null) return `Porque você deu ${toStars(seed.entry.rating)} para ${title}`
   return `Porque você curtiu ${title}`
 }
 

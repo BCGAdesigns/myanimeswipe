@@ -168,7 +168,8 @@ describe('compareLists', () => {
     expect(c.bothWant).toEqual(['w1'])
     expect(c.bothLoved).toEqual(['l3', 'l1'])
     expect(c.theyRecommend.map((s) => s.id)).toEqual(['r1', 't1'])
-    expect(c.theyRecommend[1].take.rating).toBe(9)
+    // Shown on the 1 to 8 scale: the stored 9 is a 7.
+    expect(c.theyRecommend[1].take.rating).toBe(7)
     // Already on their Quero ver: the user can tell them, rather than recommend.
     expect(c.youCanTell.map((s) => s.id)).toEqual(['mine1'])
     expect(c.youRecommend).toEqual([])
@@ -180,10 +181,11 @@ describe('compareLists', () => {
 
   it('scores compatibility from the ratings, pulled toward 50% while there is little in common', () => {
     const c = compareLists(mine, myMedia, theirs)
-    // Gaps 0, 1, 0 and 7: agreement 1 + 0.75 + 1 + 0 over 4 titles, plus 2 titles' worth of 50%.
-    expect(c.compatibility).toBe(63)
+    // On the 1 to 8 scale the gaps are 0, 1, 0 and 5: agreement 1 + 2/3 + 1 + 0 over 4 titles,
+    // plus 2 titles' worth of 50%.
+    expect(c.compatibility).toBe(61)
     expect(c.ratedTogether).toBe(4)
-    expect(c.meanGap).toBe(2)
+    expect(c.meanGap).toBe(1.5)
     expect(c.sameRating).toBe(2)
 
     const many = Array.from({ length: 10 }, (_, i) => `x${i}`)
@@ -237,7 +239,7 @@ describe('compareLists', () => {
   })
 
   it('counts profile numbers', () => {
-    expect(listStats(theirs.entries)).toEqual({ seen: 6, rated: 5, average: 7.4, favorites: 1, want: 2, watching: 0 })
+    expect(listStats(theirs.entries)).toEqual({ seen: 6, rated: 5, average: 6, favorites: 1, want: 2, watching: 0 })
   })
 })
 
@@ -308,8 +310,8 @@ describe('taste test', () => {
 describe('feed wording', () => {
   it('describes activity', () => {
     const base = { rating: null, suggestedRating: null, favorite: false }
-    expect(activityText({ ...base, status: 'seen', rating: 9 })).toBe('deu nota 9')
-    expect(activityText({ ...base, status: 'seen', suggestedRating: 8 })).toBe('deu nota 8')
+    expect(activityText({ ...base, status: 'seen', rating: 9 })).toBe('deu nota 7')
+    expect(activityText({ ...base, status: 'seen', suggestedRating: 10 })).toBe('deu nota 8')
     expect(activityText({ ...base, status: 'seen' })).toBe('já viu')
     expect(activityText({ ...base, status: 'seen', rating: 10, favorite: true })).toBe('favoritou')
     expect(activityText({ ...base, status: 'want' })).toBe('quer ver')
@@ -333,6 +335,7 @@ describe('feed wording', () => {
     expect(sentStatus({ ...base, seenAt: 'x', likedAt: 'y' }).text).toBe('Curtiu a indicação')
     expect(sentStatus({ ...base, theirStatus: 'want' })).toEqual({ text: 'Colocou na lista Quero ver', tone: 'good' })
     expect(sentStatus({ ...base, theirStatus: 'seen', theirRating: 3 })).toEqual({ text: 'Viu e deu nota 3', tone: 'bad' })
+    expect(sentStatus({ ...base, theirStatus: 'seen', theirRating: 8 })).toEqual({ text: 'Viu e deu nota 7', tone: 'good' })
     expect(sentStatus({ ...base, theirStatus: 'seen', theirRating: 9, theirFavorite: true }).text).toBe('Viu e favoritou')
     expect(sentStatus({ ...base, dismissed: true }).text).toBe('Dispensou')
   })

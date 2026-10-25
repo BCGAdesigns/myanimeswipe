@@ -4,7 +4,7 @@ Documento de decisões. Tudo aqui foi definido nas conversas com o dono do produ
 
 ## Visão
 
-App estilo Tinder para decidir e organizar o que assistir: anime, filmes, séries e desenhos ocidentais (ex.: Avatar, a Lenda de Aang). Arraste para marcar o que já viu, o que quer ver e o que não quer, dê nota de 0 a 10 aos vistos e receba recomendações no mesmo formato de swipe. Na primeira vez a pessoa escolhe o que quer classificar, e pode mudar isso a qualquer momento, como as preferências de idade e distância do Tinder.
+App estilo Tinder para decidir e organizar o que assistir: anime, filmes, séries e desenhos ocidentais (ex.: Avatar, a Lenda de Aang). Arraste para marcar o que já viu, o que quer ver e o que não quer, dê nota de 1 a 8 aos vistos (arrastando na direção da nota) e receba recomendações no mesmo formato de swipe. Na primeira vez a pessoa escolhe o que quer classificar, e pode mudar isso a qualquer momento, como as preferências de idade e distância do Tinder.
 
 ## Plataforma
 
@@ -59,8 +59,8 @@ Bússola de 8 direções (fatias iguais de 45°) mais 2 gestos de toque. Esquerd
 | ↙ Baixo-esquerda | Larguei | Lista "Larguei", fora da fila de nota **ASSUMPTION** |
 | ← Esquerda | Pular | Neutro, volta a aparecer depois dos inéditos |
 | ↖ Cima-esquerda | Em pausa | Lista "Em pausa" |
-| 2 toques | Gostei | Fila de nota com 8 sugerido, animação de coração |
-| Segurar (0,5 s) | Favorito | Já vi + favorito, fila de nota com 10 sugerido, animação de estrela **ASSUMPTION** |
+| 2 toques | Gostei | Fila de nota com 7 sugerido, animação de coração |
+| Segurar (0,5 s) | Favorito | Já vi + favorito, fila de nota com 8 sugerido, animação de estrela **ASSUMPTION** |
 
 * Toque simples abre a sinopse (espera 0,25 s para não confundir com 2 toques).
 * O selo da ação aparece enquanto arrasta e o próximo cartão cresce por trás; só confirma ao soltar. Cada gesto confirmado vibra de leve.
@@ -69,17 +69,19 @@ Bússola de 8 direções (fatias iguais de 45°) mais 2 gestos de toque. Esquerd
 ## Abas
 
 1. **Descobrir**: baralho misto com os tipos escolhidos, um de cada tipo por vez (anime, filme, série, desenho), continuando depois do tipo do último cartão marcado. Desenhos alternam séries e filmes. Cada fonte busca a próxima página quando restam menos de 10 cartões dela.
-2. **Avaliar**: fila dos "já vi" sem nota confirmada. Grade de 0 a 10 com cor por nota; a nota sugerida aparece destacada. Um toque salva e avança. Swipe para a esquerda pula, para a direita confirma. Lista dos já avaliados, com toque para reavaliar.
+2. **Avaliar**: fila dos "já vi" sem nota confirmada. A nota vai de 1 a 8, uma para cada direção de arrasto: quanto mais alto, maior a nota, e na mesma altura a direita vale um a mais (↑ 8, ↗ 7, ↖ 6, → 5, ← 4, ↘ 3, ↙ 2, ↓ 1). Assim, direções vizinhas diferem no máximo 2 pontos, e um arrasto um pouco torto fica perto da nota pretendida. Os números ficam em volta do cartão, no lugar para onde se arrasta, com cor do vermelho (1) ao verde (8); tocar num número também dá a nota. A nota sugerida (do Descobrir) fica destacada e 2 toques no cartão confirmam. Pular e Desfazer viram botões. No teclado: 1 a 8, Enter confirma a sugestão, P pula, Z desfaz. Lista dos já avaliados, com toque para reavaliar. **ASSUMPTION**: a distribuição das notas pelas direções foi escolhida por mim e muda numa tabela (`RATE_COMPASS` em `src/logic.ts`).
 3. **Para você**: recomendações no mesmo baralho e com os mesmos gestos, cada cartão com o motivo ("Porque você favoritou X").
 4. **Listas**: Quero ver, Assistindo, Em pausa, Larguei, Favoritos e Não quero, com ações e desfazer. Tocar num título abre a ficha dele.
 5. **Amigos**: feed, amigos, indicações e testes de gosto (abaixo).
+
+**Escala guardada**: os registros continuam guardando a nota de 0 a 10 (como antes), e o app mostra de 1 a 8 (`src/rating.ts`). Notas novas são salvas como 0, 1, 3, 4, 6, 7, 8 e 10; as antigas aparecem no degrau mais próximo (8 e 9 viram 7, 5 e 6 viram 5). Assim sincronização, recomendações, listas de amigos e versões antigas do app seguem funcionando sem migrar dados, e nada se perde se a escala mudar de novo.
 
 Na lista de avaliados (aba Avaliar) e nas Listas dá para ordenar por mais recentes, maior nota, menor nota, título, lançamento ou nota da comunidade, e filtrar por tipo (e por favoritos, nos avaliados). A escolha fica salva no aparelho.
 
 ## Busca
 
 * Lupa no topo: busca por nome no AniList (anime) e no TMDB (`/search/multi`, filmes, séries e desenhos; pessoas e animação japonesa ficam de fora), mais os títulos que já estão na sua biblioteca (sem diferenciar acentos). Espera uma pausa na digitação (0,35 s) antes de consultar.
-* Tocar num resultado abre a ficha do título: capa, sinopse, links, situação na sua biblioteca, todas as ações de classificação e, se já viu, a nota de 0 a 10 e o favorito. Registros feitos assim levam `via = 'search'`.
+* Tocar num resultado abre a ficha do título: capa, sinopse, links, situação na sua biblioteca, todas as ações de classificação e, se já viu, a nota de 1 a 8 e o favorito. Registros feitos assim levam `via = 'search'`.
 * As últimas 6 buscas ficam salvas no aparelho.
 
 ## Amigos (camada social)
@@ -92,11 +94,11 @@ Quem tem conta cria um **perfil**: @usuário (3 a 20 letras sem acento, números
 * **Testes de gosto**: o app escolhe até 8 títulos que pelo menos um dos dois já viu (um terço que os dois viram, um terço só do amigo, o resto só seu, puxando opiniões fortes). Cada um responde o que achou (amei, gostei, mais ou menos, não gostei, não vi) e um palpite do que o outro achou. As respostas são finais e só aparecem para o outro quando os dois terminam. Resultado: gosto parecido (média de `1 − distância ÷ 3` na escala de 4 níveis, nos títulos que os dois viram) e quantos palpites cada um acertou.
 
 **Perfil do amigo**: cartão, números (vistos, nota média, favoritos, quer ver), compatibilidade e três vistas:
-* **Em comum**: "Vocês dois querem ver", "Assistindo ao mesmo tempo", "Fulano recomenda para você" (o que ele avaliou com 7 ou mais, favoritou ou está assistindo e você não viu, ordenado por quanto ele gostou vezes quanto combina com os seus gêneros), "Você recomenda para Fulano" (o mesmo no sentido contrário, com os gêneros dele), "Na lista de Fulano, e você já viu", "Os dois amaram", "Onde vocês discordam" (notas 4 ou mais pontos distantes, ou sinais opostos) e **Notas lado a lado**, com todos os títulos em comum e a nota de cada um, ordenável por mais parecidas, mais diferentes, sua maior nota, maior nota dele ou mais recentes.
+* **Em comum**: "Vocês dois querem ver", "Assistindo ao mesmo tempo", "Fulano recomenda para você" (o que ele avaliou com 6 ou mais, favoritou ou está assistindo e você não viu, ordenado por quanto ele gostou vezes quanto combina com os seus gêneros), "Você recomenda para Fulano" (o mesmo no sentido contrário, com os gêneros dele), "Na lista de Fulano, e você já viu", "Os dois amaram", "Onde vocês discordam" (notas 3 ou mais pontos distantes, ou sinais opostos) e **Notas lado a lado**, com todos os títulos em comum e a nota de cada um, ordenável por mais parecidas, mais diferentes, sua maior nota, maior nota dele ou mais recentes.
 * **Lista**: notas, favoritos, quero ver, assistindo ou tudo.
 * **Atividade**: as últimas mudanças dele.
 
-**Compatibilidade**: cada título que os dois avaliaram vale `max(0, 1 − diferença ÷ 4)` (mesma nota 100%, 1 ponto 75%, 2 pontos 50%, 4 ou mais 0%). Títulos sem as duas notas mas com opinião forte dos dois lados (favorito, largou, gostei) valem meio título: 1 se concordam, 0 se não. O resultado é puxado para 50% com peso de 2 títulos, para não exagerar com pouca coisa em comum: `(soma + 1) ÷ (títulos + 2)`. Abaixo de 2 títulos de evidência aparece "?". **ESTIMATIVA**: a escala de 4 pontos e o peso de 2 títulos foram escolhidos à mão.
+**Compatibilidade**: cada título que os dois avaliaram vale `max(0, 1 − diferença ÷ 3)` na escala de 1 a 8 (mesma nota 100%, 1 ponto 67%, 2 pontos 33%, 3 ou mais 0%). Títulos sem as duas notas mas com opinião forte dos dois lados (favorito, largou, gostei) valem meio título: 1 se concordam, 0 se não. O resultado é puxado para 50% com peso de 2 títulos, para não exagerar com pouca coisa em comum: `(soma + 1) ÷ (títulos + 2)`. Abaixo de 2 títulos de evidência aparece "?". **ESTIMATIVA**: a escala de 3 pontos e o peso de 2 títulos foram escolhidos à mão.
 
 Na ficha de qualquer título aparece **Seus amigos**, com o que cada amigo fez com ele.
 
@@ -105,8 +107,8 @@ Servidor (`supabase/migrations/20261025150000_usernames_and_friendships.sql` e `
 ## Recomendações (fase 2, sem IA)
 
 Motor local, custo zero (`src/recs/engine.ts`):
-* Peso de cada registro: favorito 3; nota confirmada ou sugerida vira `(nota − 5,5) ÷ 2` (10 = 2,25; 8 = 1,25; 3 = −1,25); assistindo 1; quero ver 0,5; em pausa 0,2; já vi sem nota 0,3; não quero −0,75; larguei −1.
-* Sementes: registros com peso 0,75 ou mais (nota 7 para cima, gostei, assistindo, favorito) dos tipos escolhidos. Até 20 de anime (lotes de 10 por consulta no AniList) e até 8 do TMDB (uma consulta cada).
+* Peso de cada registro: favorito 3; nota confirmada ou sugerida vira `(nota guardada − 5,5) ÷ 2` (8 = 2,25; 7 = 1,25; 6 = 0,75; 3 = −1,25); assistindo 1; quero ver 0,5; em pausa 0,2; já vi sem nota 0,3; não quero −0,75; larguei −1.
+* Sementes: registros com peso 0,75 ou mais (nota 6 para cima, gostei, assistindo, favorito) dos tipos escolhidos. Até 20 de anime (lotes de 10 por consulta no AniList) e até 8 do TMDB (uma consulta cada).
 * Candidatos: recomendações da comunidade AniList (pesadas pelos votos) e listas de recomendação do TMDB (pesadas pela posição), multiplicadas pelo peso da semente.
 * Nota final: 0,6 × colaborativo + 0,3 × afinidade de gêneros e tags + 0,1 × nota da comunidade. **ESTIMATIVA**: pesos ajustados à mão, não aprendidos.
 * Exclui o que já tem registro (menos os pulados, que voltam no fim) e aplica os filtros que dá para checar no aparelho.

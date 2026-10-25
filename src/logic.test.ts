@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyAction, buildDeck, classifyRateSwipe, classifySwipe, favoriteList, rateQueue, statusList } from './logic'
+import { applyAction, buildDeck, classifyRateSwipe, classifySwipe, favoriteList, rateQueue, rateVector, statusList } from './logic'
 import { cleanSynopsis, toMedia } from './sources/anilist'
 import type { Entry } from './types'
 
@@ -39,11 +39,24 @@ describe('classifySwipe', () => {
 })
 
 describe('classifyRateSwipe', () => {
-  it('only knows confirm and skip', () => {
-    expect(classifyRateSwipe(...at(0))).toBe('confirm')
-    expect(classifyRateSwipe(...at(30))).toBe('confirm')
-    expect(classifyRateSwipe(...at(180))).toBe('skip')
-    expect(classifyRateSwipe(...at(90))).toBeNull()
+  it('gives 1 to 8 by direction: higher is better, right beats left at the same height', () => {
+    const byAngle = [90, 45, 135, 0, 180, -45, -135, -90].map((deg) => classifyRateSwipe(...at(deg)))
+    expect(byAngle).toEqual([8, 7, 6, 5, 4, 3, 2, 1])
+    expect(classifyRateSwipe(...at(100))).toBe(8)
+    expect(classifyRateSwipe(...at(90, 40))).toBeNull()
+  })
+
+  it('keeps neighbouring directions at most 2 apart', () => {
+    const around = [0, 45, 90, 135, 180, 225, 270, 315].map((deg) => classifyRateSwipe(...at(deg))!)
+    const gaps = around.map((n, i) => Math.abs(n - around[(i + 1) % 8]))
+    expect(Math.max(...gaps)).toBe(2)
+  })
+
+  it('flies each rating out the way it was dragged', () => {
+    for (let n = 1; n <= 8; n++) {
+      const [x, y] = rateVector(n)
+      expect(classifyRateSwipe(x * 200, y * 200)).toBe(n)
+    }
   })
 })
 

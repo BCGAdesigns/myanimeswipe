@@ -1,6 +1,7 @@
 import { Bookmark, Heart, Users } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { FEED_PAGE, fetchFeed, toggleLike, type FeedItem, type Person } from '../../friends/api'
+import { takeOf } from '../../friends/compare'
 import { activityText, shortName, timeAgo } from '../../friends/feed'
 import { useSocial } from '../../friends/social'
 import { useStore } from '../../store'
@@ -134,7 +135,7 @@ export function FeedView({ onOpenFriend, onGoFriends }: Props) {
                       {mine && <span className="media-row-status">Você: {statusText(mine)}</span>}
                     </span>
                     {(item.status === 'seen' || item.favorite) && (
-                      <TakeChip take={{ status: item.status, rating: item.status === 'seen' ? (item.rating ?? item.suggestedRating) : null, favorite: item.favorite }} />
+                      <TakeChip take={takeOf(item)} />
                     )}
                   </button>
                 )}

@@ -6,6 +6,7 @@ import { shortName } from '../friends/feed'
 import { useSocial } from '../friends/social'
 import { genreLabel } from '../genres'
 import { KIND_BADGES } from '../prefs'
+import { fromStars, STARS, toStars } from '../rating'
 import { useStore } from '../store'
 import type { Entry, Media, SwipeAction } from '../types'
 import { Cover, metaLine } from './MediaCard'
@@ -15,14 +16,13 @@ import { RecommendSheet } from './social/RecommendSheet'
 import { ACTION_ICONS, ACTION_LABEL, ACTION_STYLES } from './SwipeDeck'
 
 const SOURCE_NAME = { anilist: 'AniList', tmdb: 'TMDB' } as const
-const SCORES = Array.from({ length: 11 }, (_, i) => i)
 
 /** Where the title stands in the user's library, in one line. */
 export function statusText(e: Entry): string {
   switch (e.status) {
     case 'seen': {
-      if (e.rating !== null) return `Já vi · nota ${e.rating}`
-      return e.suggestedRating !== null ? `Já vi · falta confirmar a nota (${e.suggestedRating})` : 'Já vi · sem nota'
+      if (e.rating !== null) return `Já vi · nota ${toStars(e.rating)}`
+      return e.suggestedRating !== null ? `Já vi · falta confirmar a nota (${toStars(e.suggestedRating)})` : 'Já vi · sem nota'
     }
     case 'want':
       return 'Na lista Quero ver'
@@ -73,7 +73,8 @@ export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
   }, [social, media.id])
   const seen = entry?.status === 'seen'
   const actions = seen ? SEEN_ACTIONS : UNSEEN_ACTIONS
-  const current = entry ? (entry.rating ?? entry.suggestedRating) : null
+  const stored = entry ? (entry.rating ?? entry.suggestedRating) : null
+  const current = stored === null ? null : toStars(stored)
 
   const act = (action: SwipeAction) => {
     navigator.vibrate?.(8)
@@ -135,13 +136,13 @@ export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
         <>
           <h4 className="title-section">Sua nota</h4>
           <div className="score-grid">
-            {SCORES.map((s) => (
+            {STARS.map((s) => (
               <button
                 key={s}
                 className={s === current ? 'score active' : 'score'}
                 style={{ ['--s' as string]: s }}
                 aria-label={`Nota ${s}`}
-                onClick={() => rate(media.id, s)}
+                onClick={() => rate(media.id, fromStars(s))}
               >
                 {s}
               </button>

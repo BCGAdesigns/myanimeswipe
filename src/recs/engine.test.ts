@@ -116,7 +116,8 @@ describe('buildRecs', () => {
     expect(cache.ids).not.toContain('anilist:50')
     expect(cache.ids).toEqual(expect.arrayContaining(['anilist:11', 'anilist:12', 'tmdb:movie:20', 'tmdb:movie:21']))
     expect(cache.reasons['anilist:10']).toBe('Porque você favoritou Frieren')
-    expect(cache.reasons['tmdb:movie:20']).toBe('Porque você deu 9 para Duna')
+    // The stored 9 shows as 7 on the 1 to 8 scale.
+    expect(cache.reasons['tmdb:movie:20']).toBe('Porque você deu 7 para Duna')
     expect(found.map((m) => m.id)).toEqual(cache.ids)
     expect(cache.builtAt).toBe(1000)
   })

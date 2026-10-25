@@ -1,4 +1,5 @@
 // Wording for friends' activity, sent recommendations and how long ago things happened.
+import { shownRating } from '../rating'
 import type { EntryStatus } from '../types'
 import type { SentRec } from './api'
 import type { Take } from './compare'
@@ -15,7 +16,7 @@ export function activityText(e: { status: EntryStatus; rating: number | null; su
   if (e.favorite) return 'favoritou'
   switch (e.status) {
     case 'seen': {
-      const r = e.rating ?? e.suggestedRating
+      const r = shownRating(e.rating ?? e.suggestedRating)
       return r === null ? 'já viu' : `deu nota ${r}`
     }
     case 'want':
@@ -63,9 +64,11 @@ export function sentStatus(s: Pick<SentRec, 'theirStatus' | 'theirRating' | 'the
 } {
   if (s.theirFavorite) return { text: 'Viu e favoritou', tone: 'good' }
   switch (s.theirStatus) {
-    case 'seen':
-      if (s.theirRating === null) return { text: 'Já viu', tone: 'neutral' }
-      return { text: `Viu e deu nota ${s.theirRating}`, tone: s.theirRating >= 7 ? 'good' : s.theirRating <= 4 ? 'bad' : 'neutral' }
+    case 'seen': {
+      const r = shownRating(s.theirRating)
+      if (r === null) return { text: 'Já viu', tone: 'neutral' }
+      return { text: `Viu e deu nota ${r}`, tone: r >= 6 ? 'good' : r <= 3 ? 'bad' : 'neutral' }
+    }
     case 'watching':
       return { text: 'Está assistindo', tone: 'good' }
     case 'want':

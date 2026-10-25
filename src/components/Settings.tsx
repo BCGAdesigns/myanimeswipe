@@ -131,13 +131,45 @@ export function Settings({ onClose, onOpenPrefs, onOpenGuide }: Props) {
             <b>↖</b> Em pausa
           </li>
           <li>
-            <b>2×</b> Gostei (nota 8)
+            <b>2×</b> Gostei (nota 7)
           </li>
           <li>
             <b>●</b> Segurar: favorito
           </li>
         </ul>
         <p>No teclado: setas, A assistindo, P pausa, L larguei, N não gostei, G gostei, F favorito e Z desfaz.</p>
+        <h4 className="title-section">Na aba Avaliar</h4>
+        <p>Arraste o título na direção da nota: quanto mais alto, maior a nota; na mesma altura, a direita vale um a mais.</p>
+        <ul className="gesture-help">
+          <li>
+            <b>↑</b> 8
+          </li>
+          <li>
+            <b>↗</b> 7
+          </li>
+          <li>
+            <b>↖</b> 6
+          </li>
+          <li>
+            <b>→</b> 5
+          </li>
+          <li>
+            <b>←</b> 4
+          </li>
+          <li>
+            <b>↘</b> 3
+          </li>
+          <li>
+            <b>↙</b> 2
+          </li>
+          <li>
+            <b>↓</b> 1
+          </li>
+          <li>
+            <b>2×</b> Confirma a sugestão
+          </li>
+        </ul>
+        <p>No teclado: 1 a 8 dão a nota, Enter confirma a sugestão, P pula e Z desfaz.</p>
         <div className="row">
           <button onClick={onOpenGuide}>Ver guia de gestos</button>
         </div>

@@ -25,6 +25,8 @@ interface Props<T extends string> {
   onLongPress?: () => void
   /** How far the card is toward a swipe (0 to 1) and whether a finger is on it; 1 once it leaves. */
   onProgress?: (progress: number, dragging: boolean) => void
+  /** The action the drag currently points at, or null. */
+  onPreview?: (action: T | null) => void
   className?: string
   children: ReactNode
   ref?: Ref<SwipeCardHandle<T>>
@@ -46,6 +48,7 @@ export function SwipeCard<T extends string>({
   onDoubleTap,
   onLongPress,
   onProgress,
+  onPreview,
   className,
   children,
   ref,
@@ -83,6 +86,7 @@ export function SwipeCard<T extends string>({
     if (previewRef.current === action) return
     previewRef.current = action
     setPreview(action)
+    onPreview?.(action)
   }
 
   const fling = (action: T) => {

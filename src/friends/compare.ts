@@ -1,6 +1,7 @@
 // Taste comparison with a friend: compatibility from the ratings both gave, every title in
 // common side by side, and suggestions in each direction ranked by how much the recommender
 // liked the title and how well it fits the other person's genres.
+import { shownRating } from '../rating'
 import { contentScore, POSITIVE, signalWeight, tasteProfile } from '../recs/engine'
 import type { Entry, EntryStatus, Media } from '../types'
 
@@ -23,7 +24,7 @@ export interface SharedList {
 /** One person's take on a title. */
 export interface Take {
   status: EntryStatus
-  /** The confirmed rating, else the suggested one; only for seen titles. */
+  /** The confirmed rating, else the suggested one, from 1 to 8; only for seen titles. */
   rating: number | null
   favorite: boolean
 }
@@ -79,22 +80,22 @@ export const COMMON_ORDER_LABELS: Record<CommonOrder, string> = {
   recent: 'Mais recentes',
 }
 
-/** Ratings this many points apart count as no agreement at all. */
-const GAP_SCALE = 4
+/** Ratings this many points apart (on the 1 to 8 scale) count as no agreement at all. */
+const GAP_SCALE = 3
 /** Evidence worth this many titles pulls the score toward 50% while there is little in common. */
 const PRIOR = 2
 /** Below this much evidence a percentage would be noise. */
 const MIN_EVIDENCE = 2
 /** A rating of 8 or a favorite. */
 const LOVED = 1.25
-const DISAGREE_GAP = 4
+const DISAGREE_GAP = 3
 
 const STATUSES: EntryStatus[] = ['want', 'reject', 'skip', 'seen', 'watching', 'paused', 'dropped']
 
 export function takeOf(e: { status: EntryStatus; rating: number | null; suggestedRating: number | null; favorite?: boolean }): Take {
   return {
     status: e.status,
-    rating: e.status === 'seen' ? (e.rating ?? e.suggestedRating) : null,
+    rating: e.status === 'seen' ? shownRating(e.rating ?? e.suggestedRating) : null,
     favorite: e.favorite === true,
   }
 }
@@ -289,7 +290,7 @@ export function listStats(entries: { status: EntryStatus; rating: number | null;
     if (e.status === 'watching') watching++
     if (e.status !== 'seen') continue
     seen++
-    const r = e.rating ?? e.suggestedRating
+    const r = shownRating(e.rating ?? e.suggestedRating)
     if (r !== null) {
       rated++
       sum += r
