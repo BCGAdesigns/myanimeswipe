@@ -16,7 +16,7 @@ const NO_KINDS: MediaKind[] = []
 const NO_IDS: string[] = []
 
 export function DiscoverTab({ onOpenPrefs }: { onOpenPrefs: () => void }) {
-  const { ready, prefs, catalogs, entries, media, loading, errors, loadMore, clearSourceErrors, cloud } = useStore()
+  const { ready, prefs, catalogs, entries, media, loading, errors, loadMore, clearSourceErrors, cloud, hidden } = useStore()
   const hash = prefs ? filterHash(prefs) : ''
   const kinds = prefs?.kinds ?? NO_KINDS
   const sources = useMemo(() => sourcesFor(kinds), [kinds])
@@ -26,12 +26,12 @@ export function DiscoverTab({ onOpenPrefs }: { onOpenPrefs: () => void }) {
       const cat = catalogFor(catalogs, s, hash)
       return !cat.hasNextPage || cat.emptyPages >= MAX_EMPTY_PAGES || Boolean(errors[s])
     }
-    return buildMixedDeck(kinds, catalogs, hash, entries, phase, exhausted).filter((id) => media.has(id))
-  }, [kinds, catalogs, hash, entries, phase, media, errors])
+    return buildMixedDeck(kinds, catalogs, hash, entries, phase, exhausted, hidden).filter((id) => media.has(id))
+  }, [kinds, catalogs, hash, entries, phase, media, errors, hidden])
   // A signed-in device that never synced shows nothing until the library arrives, or it would
   // offer titles the account already classified.
   const waiting = Boolean(cloud.email) && !cloud.libraryReady
-  const fresh = useMemo(() => freshBySource(catalogs, sources, hash, entries), [catalogs, sources, hash, entries])
+  const fresh = useMemo(() => freshBySource(catalogs, sources, hash, entries, hidden), [catalogs, sources, hash, entries, hidden])
 
   useEffect(() => {
     if (!ready || !prefs) return

@@ -127,6 +127,11 @@ describe('buildRecs', () => {
     expect(cache.ids).toEqual(['anilist:10', 'anilist:11'])
   })
 
+  it('never recommends hidden titles (later seasons of dropped anime)', async () => {
+    const { cache } = await buildRecs(entries, seedMedia, prefs({ kinds: ['anime'] }), fetchers, 1000, new Set(['anilist:10']))
+    expect(cache.ids).toEqual(['anilist:11', 'anilist:12'])
+  })
+
   it('tolerates a failing source but not all of them', async () => {
     const broken: RecsFetchers = { ...fetchers, tmdb: async () => Promise.reject(new Error('offline')) }
     const partial = await buildRecs(entries, seedMedia, prefs(), broken)

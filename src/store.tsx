@@ -1,11 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { APP_NAME } from './brand'
 import * as db from './db'
 import { applyAction } from './logic'
 import { DEFAULT_PREFS, filterHash, normalizePrefs, type Preferences } from './prefs'
 import { FAVORITE_STARS, fromStars, rescaled } from './rating'
 import { buildRecs, type RecsCache } from './recs/engine'
-import { fetchAnimeRecs } from './sources/anilist'
+import { hiddenSequels, sequelLookups, walkSequels, withLookups, type SequelChains } from './sequels'
+import { fetchAnimeRecs, fetchDirectSequels, RateLimitError } from './sources/anilist'
 import {
   catalogFor,
   describeSourceError,
@@ -69,6 +70,8 @@ interface Store {
   recsStatus: RecsStatus
   recsError: string | null
   refreshRecs: () => Promise<void>
+  /** Later seasons of the anime in Larguei: never suggested in Descobrir or Para você. */
+  hidden: ReadonlySet<string>
   exportData: () => ExportFile
   importData: (file: ExportFile) => Promise<number>
   resetAll: () => Promise<void>
@@ -98,6 +101,11 @@ const TOP = fromStars(FAVORITE_STARS)
 const BELOW_TOP = fromStars(FAVORITE_STARS - 1)
 
 const NOTICE_KEY = 'watchmatch:rescaleNotice'
+
+/** A burst of changes (a sync, quick swipes) becomes one sequel lookup. */
+const SEQUEL_WAIT_MS = 800
+/** Offline or AniList down: try the lookup again after this. */
+const SEQUEL_RETRY_MS = 2 * 60 * 1000
 
 function readNotice() {
   try {
@@ -130,6 +138,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [recsStatus, setRecsStatus] = useState<RecsStatus>('idle')
   const [recsError, setRecsError] = useState<string | null>(null)
   const [rescaleNotice, setRescaleNotice] = useState(readNotice)
+  const [sequels, setSequels] = useState<SequelChains>({})
+  const [sequelRetry, setSequelRetry] = useState(0)
 
   const raiseRescaleNotice = useCallback(() => {
     writeNotice(true)
@@ -151,6 +161,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const catalogsRef = useRef<Catalogs>({})
   const loadingRef = useRef(new Set<SourceKey>())
   const recsBuilding = useRef(false)
+  const sequelsRef = useRef<SequelChains>({})
+  const sequelBusy = useRef(false)
+  const hidden = useMemo(() => hiddenSequels(entries, sequels), [entries, sequels])
+  const hiddenRef = useRef(hidden)
+  hiddenRef.current = hidden
   /** The sync scheduler, which only exists after useCloudSync below. */
   const scheduleRef = useRef<(delay?: number) => void>(() => {})
 
@@ -244,15 +259,41 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
         prefsRef.current = loadedPrefs
         catalogsRef.current = loadedCatalogs
+        sequelsRef.current = data.sequels ?? {}
         setMedia(new Map(data.media.map((m) => [m.id, m])))
         setEntries(new Map(data.entries.map((e) => [e.mediaId, e])))
         setPrefsState(loadedPrefs)
         setCatalogs(loadedCatalogs)
         setRecs(data.recs ?? null)
+        setSequels(sequelsRef.current)
       })
       .catch((e) => setError(`Falha ao abrir o banco local: ${errorText(e)}`))
       .finally(() => setReady(true))
   }, [raiseRescaleNotice])
+
+  // Dropped anime whose later seasons are not known yet: ask AniList, all of them in one walk.
+  const lookups = useMemo(() => (ready ? sequelLookups(entries, sequels, Date.now()).join(',') : ''), [ready, entries, sequels])
+  useEffect(() => {
+    if (!lookups || sequelBusy.current) return
+    const timer = setTimeout(() => {
+      sequelBusy.current = true
+      walkSequels(lookups.split(',').map(Number), fetchDirectSequels).then(
+        (found) => {
+          sequelBusy.current = false
+          sequelsRef.current = withLookups(sequelsRef.current, found, Date.now())
+          setSequels(sequelsRef.current)
+          db.saveSequels(sequelsRef.current).catch(() => {})
+        },
+        (e) => {
+          sequelBusy.current = false
+          // Nothing is hidden meanwhile; the lookup runs again later.
+          const wait = e instanceof RateLimitError ? e.retryAfterSec * 1000 : SEQUEL_RETRY_MS
+          setTimeout(() => setSequelRetry((n) => n + 1), wait)
+        },
+      )
+    }, SEQUEL_WAIT_MS)
+    return () => clearTimeout(timer)
+  }, [lookups, sequelRetry])
 
   const setPrefs = useCallback<Store['setPrefs']>(
     (next) => {
@@ -407,7 +448,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const latest = catalogFor(catalogsRef.current, source, hash)
         const known = new Set(latest.ids)
         const added = page.map((m) => m.id).filter((id) => !known.has(id))
-        const freshAdded = added.some((id) => !entriesRef.current.has(id))
+        const freshAdded = added.some((id) => !entriesRef.current.has(id) && !hiddenRef.current.has(id))
         commitCatalogs({
           ...catalogsRef.current,
           [source]: {
@@ -441,10 +482,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setRecsStatus('building')
     setRecsError(null)
     try {
-      const built = await buildRecs(entriesRef.current, mediaRef.current, current, {
-        anime: fetchAnimeRecs,
-        tmdb: fetchTmdbRecs,
-      })
+      const built = await buildRecs(
+        entriesRef.current,
+        mediaRef.current,
+        current,
+        { anime: fetchAnimeRecs, tmdb: fetchTmdbRecs },
+        Date.now(),
+        hiddenRef.current,
+      )
       await db.saveMedia(built.media)
       addMedia(built.media)
       await db.saveRecs(built.cache)
@@ -499,12 +544,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     await db.clearAll()
     prefsRef.current = null
     catalogsRef.current = {}
+    sequelsRef.current = {}
     setMedia(new Map())
     setEntries(new Map())
     setPrefsState(null)
     setCatalogs({})
     setErrors({})
     setRecs(null)
+    setSequels({})
     setUndoStack([])
     // When signed in, the cloud copy comes back with the next pull.
     schedule(0)
@@ -542,6 +589,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         recsStatus,
         recsError,
         refreshRecs,
+        hidden,
         exportData,
         importData,
         resetAll,

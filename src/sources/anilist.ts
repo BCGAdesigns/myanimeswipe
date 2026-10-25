@@ -69,6 +69,17 @@ query Search($q: String) {
   }
 }`
 
+// SEQUEL is "released after the relation": the next season, or a movie or special that continues it.
+const SEQUELS_QUERY = `
+query Sequels($ids: [Int]) {
+  Page(perPage: 50) {
+    media(id_in: $ids, type: ANIME) {
+      id
+      relations { edges { relationType(version: 2) node { id type } } }
+    }
+  }
+}`
+
 interface RawMedia {
   id: number
   idMal: number | null
@@ -200,6 +211,28 @@ export interface Recommendation {
   media: Media
   /** Community votes for "if you liked the seed, watch this". */
   votes: number
+}
+
+export interface RawRelations {
+  id: number
+  relations: {
+    edges: ({ relationType: string | null; node: { id: number; type: string | null } | null } | null)[] | null
+  } | null
+}
+
+/** Anime that directly continue this one; side stories, spin-offs, prequels and manga are left out. */
+export function directSequels(raw: RawRelations): number[] {
+  return (raw.relations?.edges ?? []).flatMap((e) => (e?.relationType === 'SEQUEL' && e.node?.type === 'ANIME' ? [e.node.id] : []))
+}
+
+/** Next step of each anime's sequel chain, 50 anime per request. */
+export async function fetchDirectSequels(sourceIds: number[]): Promise<Map<number, number[]>> {
+  const out = new Map<number, number[]>()
+  for (let i = 0; i < sourceIds.length; i += PAGE_SIZE) {
+    const data = await post(SEQUELS_QUERY, { ids: sourceIds.slice(i, i + PAGE_SIZE) })
+    for (const raw of data.Page.media as RawRelations[]) out.set(raw.id, directSequels(raw))
+  }
+  return out
 }
 
 /** Community recommendations for several anime in one request (validated live: 10 seeds, no complexity error). */

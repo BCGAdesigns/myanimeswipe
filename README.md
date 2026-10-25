@@ -44,13 +44,14 @@ O workflow `.github/workflows/ci.yml` roda testes e build em todo push. `dist/` 
 * `src/prefs.ts` e `src/genres.ts`: preferências, filtros e o vocabulário único de gêneros.
 * `src/sources/`: AniList (`anilist.ts`), TMDB pelo proxy (`tmdb.ts`), serviços de streaming (`providers.ts`) e o baralho misto (`catalog.ts`).
 * `src/recs/engine.ts`: motor de recomendações da fase 2.
+* `src/sequels.ts`: as próximas temporadas dos animes largados (cadeia de continuações do AniList), que ficam fora do Descobrir e de Para você.
 * `src/library.ts`: ordenação, filtros e busca na biblioteca do usuário.
 * `src/friends/`: camada social: chamadas ao servidor (`api.ts`), estado compartilhado e contadores (`social.tsx`), compatibilidade e comparação de listas (`compare.ts`), teste de gosto (`taste.ts`) e textos do feed (`feed.ts`).
-* `src/db.ts`: IndexedDB (catálogos, títulos, registros, preferências, recomendações e a fila de alterações a sincronizar).
+* `src/db.ts`: IndexedDB (catálogos, títulos, registros, preferências, recomendações, continuações dos largados e a fila de alterações a sincronizar).
 * `src/sync/`: motor de sincronização, cliente Supabase e o hook de login.
 * `src/store.tsx`: estado do app, desfazer, exportar e importar.
 * `src/components/`: telas (primeira vez, Descobrir, Avaliar, Para você, Listas, busca, ficha do título, preferências, configurações, guia de gestos). As telas da aba Amigos ficam em `src/components/social/`.
 * `public/`: ícones, imagem de compartilhamento, logo do TMDB, Termos de Uso e Política de Privacidade.
 * `scripts/generate-brand-assets.cjs`: gera ícones e a imagem de compartilhamento a partir do desenho do logo (precisa do Playwright).
 
-Testes: `src/**/*.test.ts` cobrem gestos, sincronização, preferências, consultas ao AniList e ao TMDB, baralho misto, filtros locais, recomendações, ordenação e busca na biblioteca, a compatibilidade e a comparação com amigos, o teste de gosto e os textos do feed.
+Testes: `src/**/*.test.ts` cobrem gestos, sincronização, preferências, consultas ao AniList e ao TMDB, baralho misto, filtros locais, recomendações, as continuações dos largados, ordenação e busca na biblioteca, a compatibilidade e a comparação com amigos, o teste de gosto e os textos do feed.

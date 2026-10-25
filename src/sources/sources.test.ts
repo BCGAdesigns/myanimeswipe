@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_PREFS, type Preferences } from '../prefs'
 import type { Entry, Media } from '../types'
 import { catalogVariables } from './anilist'
-import { buildMixedDeck, catalogFor, deckPhase, passesFilters, sourcesFor, type Catalogs } from './catalog'
+import { buildMixedDeck, catalogFor, deckPhase, freshBySource, passesFilters, sourcesFor, type Catalogs } from './catalog'
 import { anilistSites } from './providers'
 import { discoverParams, kindOfTmdb, toMediaTmdb } from './tmdb'
 
@@ -172,6 +172,15 @@ describe('mixed deck', () => {
     expect(buildMixedDeck(['anime', 'movie'], stale, 'h', entries, undefined, (s) => s !== 'anime')).toEqual(['a3'])
     expect(catalogFor(stale, 'movie', 'h').ids).toEqual([])
     expect(sourcesFor(['cartoon', 'anime'])).toEqual(['anime', 'cartoon-tv', 'cartoon-movie'])
+  })
+
+  it('leaves hidden titles out, skipped or not, and the next one of that kind takes the turn', () => {
+    const entries = new Map<string, Entry>([
+      ['a3', { mediaId: 'a3', status: 'skip', skippedAt: 2, rating: null, suggestedRating: null, via: 'discover', updatedAt: 2 }],
+    ])
+    const hidden = new Set(['a1', 'a3'])
+    expect(buildMixedDeck(['anime', 'movie'], catalogs, 'h', entries, undefined, undefined, hidden)).toEqual(['a2', 'm1', 'm2'])
+    expect(freshBySource(catalogs, ['anime'], 'h', entries, hidden)).toEqual({ anime: ['a2'] })
   })
 })
 

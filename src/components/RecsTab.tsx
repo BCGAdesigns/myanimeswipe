@@ -9,18 +9,19 @@ import { SwipeDeck } from './SwipeDeck'
 const REFILL_AT = 5
 
 export function RecsTab({ onOpenPrefs }: { onOpenPrefs: () => void }) {
-  const { ready, prefs, entries, media, recs, recsStatus, recsError, refreshRecs, cloud } = useStore()
+  const { ready, prefs, entries, media, recs, recsStatus, recsError, refreshRecs, cloud, hidden } = useStore()
   // A device that never synced this account would recommend from an incomplete library.
   const waiting = Boolean(cloud.email) && !cloud.libraryReady
 
   const seeds = useMemo(() => (prefs ? pickSeeds(entries, media, prefs) : null), [entries, media, prefs])
   const positive = seeds?.all.length ?? 0
   const seedKey = seeds ? seedKeyOf(seeds) : ''
+  // The list may predate a drop: its later seasons leave the deck at once.
   const deck = useMemo(
-    () => (recs ? buildDeck(recs.ids, entries).filter((id) => media.has(id)) : []),
-    [recs, entries, media],
+    () => (recs ? buildDeck(recs.ids, entries).filter((id) => media.has(id) && !hidden.has(id)) : []),
+    [recs, entries, media, hidden],
   )
-  const fresh = useMemo(() => (recs ? countFresh(recs.ids, entries) : 0), [recs, entries])
+  const fresh = useMemo(() => (recs ? countFresh(recs.ids, entries, hidden) : 0), [recs, entries, hidden])
 
   useEffect(() => {
     if (!ready || !prefs || waiting || positive < MIN_POSITIVE_SIGNALS || recsStatus !== 'idle') return

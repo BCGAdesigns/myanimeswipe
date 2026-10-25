@@ -64,10 +64,18 @@ export function describeSourceError(source: SourceKey, e: unknown): string {
   return `Não consegui carregar ${SOURCE_LABEL[source]}: ${text}`
 }
 
-/** Unswiped ids per source, in source order. */
-export function freshBySource(catalogs: Catalogs, sources: SourceKey[], hash: string, entries: Map<string, Entry>) {
+const NONE: ReadonlySet<string> = new Set()
+
+/** Unswiped ids per source, in source order, without the hidden ones (later seasons of dropped anime). */
+export function freshBySource(
+  catalogs: Catalogs,
+  sources: SourceKey[],
+  hash: string,
+  entries: Map<string, Entry>,
+  hidden: ReadonlySet<string> = NONE,
+) {
   const out: Partial<Record<SourceKey, string[]>> = {}
-  for (const s of sources) out[s] = catalogFor(catalogs, s, hash).ids.filter((id) => !entries.has(id))
+  for (const s of sources) out[s] = catalogFor(catalogs, s, hash).ids.filter((id) => !entries.has(id) && !hidden.has(id))
   return out
 }
 
@@ -106,7 +114,8 @@ export function deckPhase(entries: Map<string, Entry>, media: Map<string, Media>
  * The Discover deck: one card of each chosen kind in turn (anime, movie, series, cartoon),
  * starting after the kind swiped last so every kind gets its turn, then the skipped cards,
  * oldest skip first. Skipped cards of a source come back only once it has nothing new left to
- * load (`exhausted`), so a new device fetches more pages instead of repeating them.
+ * load (`exhausted`), so a new device fetches more pages instead of repeating them. Hidden ids
+ * (later seasons of dropped anime) never enter, skipped or not.
  */
 export function buildMixedDeck(
   kinds: MediaKind[],
@@ -115,9 +124,10 @@ export function buildMixedDeck(
   entries: Map<string, Entry>,
   phase: DeckPhase = { lastKind: null, lastCartoon: null },
   exhausted: (source: SourceKey) => boolean = () => true,
+  hidden: ReadonlySet<string> = NONE,
 ): string[] {
   const sources = sourcesFor(kinds)
-  const fresh = freshBySource(catalogs, sources, hash, entries)
+  const fresh = freshBySource(catalogs, sources, hash, entries, hidden)
   const order = ALL_KINDS.filter((k) => kinds.includes(k))
   // indexOf is -1 when the last swipe was of a kind no longer chosen: start from the first.
   const start = phase.lastKind ? (order.indexOf(phase.lastKind) + 1) % order.length : 0
@@ -143,7 +153,7 @@ export function buildMixedDeck(
     if (!exhausted(s)) continue
     for (const id of catalogFor(catalogs, s, hash).ids) {
       const e = entries.get(id)
-      if (e?.status === 'skip') skipped.push(e)
+      if (e?.status === 'skip' && !hidden.has(id)) skipped.push(e)
     }
   }
   skipped.sort((a, b) => (a.skippedAt ?? 0) - (b.skippedAt ?? 0))

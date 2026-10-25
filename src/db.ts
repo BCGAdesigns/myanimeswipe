@@ -2,6 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import type { Preferences } from './prefs'
 import { rescaled } from './rating'
 import type { RecsCache } from './recs/engine'
+import type { SequelChains } from './sequels'
 import type { Catalogs } from './sources/catalog'
 import { isNewer, revOf, type LocalStore, type OutboxItem, type RemoteChange, type SyncMeta } from './sync/engine'
 import type { Entry, Media } from './types'
@@ -13,7 +14,7 @@ export interface LegacyCatalog {
   hasNextPage: boolean
 }
 
-type MetaValue = LegacyCatalog | SyncMeta | Catalogs | Preferences | RecsCache
+type MetaValue = LegacyCatalog | SyncMeta | Catalogs | Preferences | RecsCache | SequelChains
 
 interface SwipeDB extends DBSchema {
   media: { key: string; value: Media }
@@ -41,15 +42,16 @@ function db() {
 
 export async function loadAll() {
   const d = await db()
-  const [media, entries, catalogs, legacyCatalog, prefs, recs] = await Promise.all([
+  const [media, entries, catalogs, legacyCatalog, prefs, recs, sequels] = await Promise.all([
     d.getAll('media'),
     d.getAll('entries'),
     d.get('meta', 'catalogs') as Promise<Catalogs | undefined>,
     d.get('meta', 'catalog') as Promise<LegacyCatalog | undefined>,
     d.get('meta', 'prefs') as Promise<Preferences | undefined>,
     d.get('meta', 'recs') as Promise<RecsCache | undefined>,
+    d.get('meta', 'sequels') as Promise<SequelChains | undefined>,
   ])
-  return { media, entries, catalogs, legacyCatalog, prefs, recs }
+  return { media, entries, catalogs, legacyCatalog, prefs, recs, sequels }
 }
 
 export async function saveMedia(items: Media[]) {
@@ -67,6 +69,10 @@ export async function savePrefs(prefs: Preferences) {
 
 export async function saveRecs(recs: RecsCache) {
   await (await db()).put('meta', recs, 'recs')
+}
+
+export async function saveSequels(chains: SequelChains) {
+  await (await db()).put('meta', chains, 'sequels')
 }
 
 /** Saves records changed on this device and queues them for the cloud. */

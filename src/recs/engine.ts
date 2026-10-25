@@ -142,12 +142,14 @@ export function isStale(cache: RecsCache | null, prefs: Preferences, now: number
   return !cache || cache.prefsKey !== prefsKeyOf(prefs) || now - cache.builtAt > MAX_AGE_MS
 }
 
+/** `hidden`: titles never recommended (later seasons of dropped anime). */
 export async function buildRecs(
   entries: Map<string, Entry>,
   media: Map<string, Media>,
   prefs: Preferences,
   fetchers: RecsFetchers,
   now = Date.now(),
+  hidden: ReadonlySet<string> = new Set(),
 ): Promise<{ cache: RecsCache; media: Media[]; failures: number }> {
   const seeds = pickSeeds(entries, media, prefs)
   const found = new Map<string, { media: Media; collab: number; best: Seed; bestContrib: number }>()
@@ -193,7 +195,7 @@ export async function buildRecs(
   const ranked = [...found.values()]
     .filter((f) => {
       const e = entries.get(f.media.id)
-      return (!e || e.status === 'skip') && passesFilters(f.media, prefs, sites)
+      return (!e || e.status === 'skip') && !hidden.has(f.media.id) && passesFilters(f.media, prefs, sites)
     })
     .map((f) => ({
       f,

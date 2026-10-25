@@ -196,7 +196,11 @@ export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
         </button>
       </div>
       <p className="small muted control-hint">
-        {status === null ? 'Fora das suas listas.' : 'Não vi tira o título das suas listas, e ele volta para o Descobrir.'}
+        {status === null
+          ? 'Fora das suas listas.'
+          : status === 'dropped' && media.source === 'anilist'
+            ? 'As próximas temporadas não aparecem no Descobrir nem em Para você. Não vi tira o título das suas listas.'
+            : 'Não vi tira o título das suas listas, e ele volta para o Descobrir.'}
       </p>
 
       <h4 className="title-section">Nota</h4>

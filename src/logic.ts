@@ -80,9 +80,9 @@ export function buildDeck(order: string[], entries: Map<string, Entry>): string[
   return [...fresh, ...skipped.map((e) => e.mediaId)]
 }
 
-export function countFresh(order: string[], entries: Map<string, Entry>): number {
+export function countFresh(order: string[], entries: Map<string, Entry>, hidden: ReadonlySet<string> = new Set()): number {
   let n = 0
-  for (const id of order) if (!entries.has(id)) n++
+  for (const id of order) if (!entries.has(id) && !hidden.has(id)) n++
   return n
 }
 
