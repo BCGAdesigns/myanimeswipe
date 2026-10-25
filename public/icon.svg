@@ -1,1 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#0f1115"/><rect x="146" y="96" width="220" height="320" rx="32" fill="#a78bfa" transform="rotate(-10 256 256)"/><rect x="166" y="106" width="220" height="320" rx="32" fill="#f2f3f5" transform="rotate(8 256 256)"/><path d="M256 330c-48-36-80-62-80-98a40 40 0 0 1 80-12 40 40 0 0 1 80 12c0 36-32 62-80 98z" fill="#ef4444" transform="rotate(8 256 256)"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs><radialGradient id="bg" cx="0.5" cy="0.3" r="0.8"><stop offset="0" stop-color="#1D1530"/><stop offset="1" stop-color="#0B0C10"/></radialGradient><linearGradient id="wm-g" x1="0.15" y1="0" x2="0.85" y2="1"><stop offset="0" stop-color="#8B5CF6"/><stop offset="1" stop-color="#EC4899"/></linearGradient></defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g transform="translate(54.7 48.1) scale(6.6)">
+    <rect x="11" y="10" width="30" height="41" rx="8" fill="#8B5CF6" fill-opacity="0.38" transform="rotate(-13 26 30.5)"/>
+    <rect x="22" y="12" width="30" height="41" rx="8" fill="url(#wm-g)" transform="rotate(9 37 32.5)"/>
+    <path d="M32.5 25.5 L44 33 L32.5 40.5 Z" fill="#fff" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" transform="rotate(9 37 32.5)"/>
+  </g></svg>
