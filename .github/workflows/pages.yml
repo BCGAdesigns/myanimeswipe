@@ -1,14 +1,13 @@
 name: Deploy to GitHub Pages
 
-# Builds on every push, deploys only from the default branch.
+# Tests and builds on every push. On the default branch, publishes dist/ to the
+# gh-pages branch, which GitHub Pages serves ("Deploy from a branch").
 on:
   push:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -26,20 +25,17 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-      - if: github.ref_name == github.event.repository.default_branch
-        uses: actions/configure-pages@v6
-      - if: github.ref_name == github.event.repository.default_branch
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: dist
-
-  deploy:
-    if: github.ref_name == github.event.repository.default_branch
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v5
+      - name: Publish dist/ to gh-pages
+        if: github.ref_name == github.event.repository.default_branch
+        working-directory: dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Single orphan commit per deploy keeps gh-pages small; .nojekyll skips the Jekyll build.
+        run: |
+          touch .nojekyll
+          git init -q -b gh-pages
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -q -m "Deploy ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

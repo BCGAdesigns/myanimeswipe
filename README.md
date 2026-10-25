@@ -18,13 +18,12 @@ Para abrir no celular durante o desenvolvimento: `npm run dev -- --host` e acess
 
 ## Publicar
 
-O workflow `.github/workflows/pages.yml` roda testes e build em todo push e publica no GitHub Pages a partir do branch padrão. Para ativar:
+O workflow `.github/workflows/pages.yml` roda testes e build em todo push. No branch padrão, ele publica o `dist/` no branch `gh-pages`, que o GitHub Pages serve (modo "Deploy from a branch").
 
-1. Em **Settings → Pages**, escolha **Source: GitHub Actions**.
-2. O repositório precisa ser público, a menos que a conta tenha plano pago (Pro, Team ou Enterprise).
-3. Faça um push no branch padrão (ou rode o workflow manualmente em **Actions**).
+* O repositório precisa ser público, a menos que a conta tenha plano pago (Pro, Team ou Enterprise).
+* O Pages foi ligado automaticamente quando o branch `gh-pages` foi criado. Se um dia ele for desligado, reative em **Settings → Pages** com **Source: Deploy from a branch**, branch `gh-pages`, pasta `/ (root)`.
 
-O endereço fica `https://<usuario>.github.io/myanimeswipe/`. Abra no celular e use "Adicionar à tela inicial" para instalar.
+Endereço: https://bcgadesigns.github.io/myanimeswipe/. Abra no celular e use "Adicionar à tela inicial" para instalar.
 
 `dist/` é estático e usa caminhos relativos, então também serve em Vercel ou Netlify sem mudanças.
 
