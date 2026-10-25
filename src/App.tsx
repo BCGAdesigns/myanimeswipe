@@ -107,7 +107,7 @@ export function App() {
   const filters = prefs ? activeFilterCount(prefs) : 0
   const openPrefs = () => setSheet('prefs')
 
-  if (ready && !prefs) return <Onboarding />
+  if (ready && !prefs) return <Onboarding invited={link !== null} />
 
   const CloudIcon = cloud.status === 'syncing' ? RefreshCw : cloud.status === 'error' ? CloudAlert : Cloud
 

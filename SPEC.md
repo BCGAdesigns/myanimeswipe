@@ -28,7 +28,8 @@ App estilo Tinder para decidir e organizar o que assistir: anime, filmes, série
 
 ## Primeira vez e preferências
 
-* Primeira abertura: tela de boas-vindas com os quatro tipos (Anime, Filmes, Séries, Desenhos), todos marcados; quem já usava a versão só de anime começa só com Anime. Depois, um guia de gestos aparece uma vez (e fica em Configurações).
+* Primeira abertura: **Entrar com e-mail** ou **Continuar sem conta**, com o aviso de que, sem conta, tudo fica só naquele aparelho (limpar os dados do navegador ou trocar de aparelho apaga o que foi classificado) e que a conta pode ser criada depois em Configurações. Quem abriu por um convite vê que precisa entrar para aceitar. Entrar usa o mesmo formulário de Configurações (e-mail, depois o link ou o código de 6 números); ao entrar, o app traz a biblioteca da nuvem antes de seguir, e uma conta que já tem preferências entra direto no app. Sem build com nuvem, essa etapa não aparece.
+* Depois vem a escolha dos quatro tipos (Anime, Filmes, Séries, Desenhos), todos marcados; quem já usava a versão só de anime começa só com Anime. Depois, um guia de gestos aparece uma vez (e fica em Configurações).
 * Botão de filtros no topo abre as preferências. Escolher os tipos é sempre grátis.
 * Filtros avançados, marcados **PRO** e grátis por enquanto (`PREMIUM_FILTERS_UNLOCKED` em `src/prefs.ts`): ordenar por populares, melhor nota ou lançamentos; faixa de anos; nota mínima da comunidade; gêneros a evitar; formatos de anime; máximo de episódios (anime); duração máxima de filmes; idioma original (filmes, séries e desenhos); só o que está em streaming no Brasil; serviços específicos.
 * Mudar filtros recomeça o catálogo daquele conjunto de filtros; o que já foi classificado continua guardado.
