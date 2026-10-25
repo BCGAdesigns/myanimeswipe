@@ -331,7 +331,7 @@ export function PreferencesSheet({ onClose }: { onClose: () => void }) {
                   title={p.name}
                   onClick={() => set('providers', toggle(draft.providers, p.id))}
                 >
-                  <img src={providerLogo(p)} alt="" crossOrigin="anonymous" loading="lazy" />
+                  <img src={providerLogo(p)} alt="" loading="lazy" />
                   <span>{p.name}</span>
                 </button>
               )

@@ -8,6 +8,11 @@ import './styles.css'
 
 registerSW({ immediate: true })
 
+// Version 0.3.0 cached covers in the service worker; that cache is no longer used.
+if ('caches' in window) {
+  for (const name of ['covers', 'tmdb-images']) void caches.delete(name).catch(() => {})
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <StoreProvider>

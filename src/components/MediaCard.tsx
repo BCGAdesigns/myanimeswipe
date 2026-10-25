@@ -52,8 +52,9 @@ export function coverThumb(m: Media) {
   return m.source === 'tmdb' ? m.cover.replace('/t/p/w500/', '/t/p/w185/') : m.cover
 }
 
-// Both CDNs answer CORS requests, which lets the service worker cache covers (see vite.config.ts).
-// Every <img> of a cover must use the same mode, or a cached no-CORS copy can break a CORS load.
+// Plain (no-CORS) loads on purpose: AniList answers requests without Origin with no CORS headers
+// and no Vary, so a cover cached that way breaks any later CORS load of the same URL. The HTTP
+// cache (31 days on AniList, a year on TMDB) keeps covers available offline instead.
 interface CoverProps {
   src: string
   className?: string
@@ -67,7 +68,6 @@ export function Cover({ src, className, lazy, onError }: CoverProps) {
       className={className}
       src={src}
       alt=""
-      crossOrigin="anonymous"
       decoding="async"
       loading={lazy ? 'lazy' : undefined}
       draggable={false}
@@ -77,9 +77,7 @@ export function Cover({ src, className, lazy, onError }: CoverProps) {
 }
 
 export function preloadCover(src: string) {
-  const img = new Image()
-  img.crossOrigin = 'anonymous'
-  img.src = src
+  new Image().src = src
 }
 
 const SOURCE_NAME = { anilist: 'AniList', tmdb: 'TMDB' } as const

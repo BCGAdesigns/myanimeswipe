@@ -44,31 +44,8 @@ export default defineConfig({
       },
       workbox: {
         // App shell, legal pages and the font (latin subsets are what pt-BR needs; the rest are tiny).
+        // Covers are left to the browser's HTTP cache: see Cover in src/components/MediaCard.tsx.
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
-        runtimeCaching: [
-          {
-            // AniList cover art. Covers never change for a given URL. Images load with
-            // crossOrigin="anonymous" (both CDNs send CORS headers), so responses are not opaque.
-            urlPattern: ({ url }) => url.hostname.endsWith('anilist.co') && url.pathname.startsWith('/file/'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'covers',
-              expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 60 },
-              // Only 200: opaque (status 0) responses are padded to MBs each against the storage quota.
-              cacheableResponse: { statuses: [200] },
-            },
-          },
-          {
-            // TMDB posters and streaming logos; paths are content hashes.
-            urlPattern: ({ url }) => url.hostname === 'image.tmdb.org',
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'tmdb-images',
-              expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 60 },
-              cacheableResponse: { statuses: [200] },
-            },
-          },
-        ],
       },
     }),
   ],
