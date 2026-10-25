@@ -1,6 +1,6 @@
 # WatchMatch
 
-PWA estilo Tinder para decidir e organizar o que assistir: anime, filmes, séries e desenhos. Arraste para marcar o que já viu, o que quer ver e o que não quer, dê nota de 1 a 8 (arrastando na direção da nota) e receba recomendações. Dados do [AniList](https://anilist.co) (anime) e do [TMDB](https://www.themoviedb.org) (filmes, séries e desenhos), com onde assistir da JustWatch.
+PWA estilo Tinder para decidir e organizar o que assistir: anime, filmes, séries e desenhos. Arraste para marcar o que já viu, o que quer ver e o que não quer, dê nota de 1 a 9 (arrastando na direção da nota, e 9 é o favorito) e receba recomendações. Dados do [AniList](https://anilist.co) (anime) e do [TMDB](https://www.themoviedb.org) (filmes, séries e desenhos), com onde assistir da JustWatch.
 
 O nome do produto fica em `src/brand.ts`; identificadores internos (banco local, backup) continuam `myanimeswipe` para não perder dados.
 

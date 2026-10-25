@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import type { Preferences } from './prefs'
+import { rescaled } from './rating'
 import type { RecsCache } from './recs/engine'
 import type { Catalogs } from './sources/catalog'
 import { isNewer, revOf, type LocalStore, type OutboxItem, type RemoteChange, type SyncMeta } from './sync/engine'
@@ -80,6 +81,24 @@ export async function saveLocalEntries(entries: Entry[]) {
   ])
 }
 
+/**
+ * Ratings from the old 1 to 8 scale go back to the rating queue (see rescaled in src/rating.ts) and
+ * are queued for the cloud. Returns how many titles went back.
+ */
+export async function rescaleOldRatings(): Promise<number> {
+  const tx = (await db()).transaction(['entries', 'outbox'], 'readwrite')
+  let count = 0
+  for (const entry of await tx.objectStore('entries').getAll()) {
+    const next = rescaled(entry)
+    if (!next) continue
+    count++
+    await tx.objectStore('entries').put(next)
+    await tx.objectStore('outbox').put({ mediaId: next.mediaId, rev: revOf(next) })
+  }
+  await tx.done
+  return count
+}
+
 /** Removes a record on this device and queues the removal for the cloud. */
 export async function removeLocalEntry(mediaId: string, rev: number) {
   const tx = (await db()).transaction(['entries', 'outbox'], 'readwrite')
@@ -143,11 +162,16 @@ export const idbStore: LocalStore = {
       if (options?.force) {
         if (pending) await outbox.delete(change.mediaId)
       } else if (!isNewer(change.rev, local, pending?.rev)) continue
-      if (change.entry) await entries.put(change.entry)
+      // A rating from the old scale, never redone on another device: back to the queue here too.
+      const reset = change.entry && rescaled(change.entry)
+      if (reset) {
+        await entries.put(reset)
+        await outbox.put({ mediaId: reset.mediaId, rev: revOf(reset) })
+      } else if (change.entry) await entries.put(change.entry)
       else if (local) await entries.delete(change.mediaId)
       // Keep the catalog's copy when there is one; the snapshot only fills gaps.
       if (change.media && !(await media.get(change.media.id))) await media.put(change.media)
-      applied.push(change)
+      applied.push(reset ? { ...change, rev: revOf(reset), entry: reset, rescaled: true } : change)
     }
     await tx.done
     return applied

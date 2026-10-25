@@ -24,7 +24,7 @@ export interface SharedList {
 /** One person's take on a title. */
 export interface Take {
   status: EntryStatus
-  /** The confirmed rating, else the suggested one, from 1 to 8; only for seen titles. */
+  /** The confirmed rating, else the suggested one, from 1 to 9; only for seen titles. */
   rating: number | null
   favorite: boolean
 }
@@ -80,7 +80,7 @@ export const COMMON_ORDER_LABELS: Record<CommonOrder, string> = {
   recent: 'Mais recentes',
 }
 
-/** Ratings this many points apart (on the 1 to 8 scale) count as no agreement at all. */
+/** Ratings this many points apart (on the 1 to 9 scale) count as no agreement at all. */
 const GAP_SCALE = 3
 /** Evidence worth this many titles pulls the score toward 50% while there is little in common. */
 const PRIOR = 2

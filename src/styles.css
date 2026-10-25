@@ -388,6 +388,22 @@ main {
   color: #fecaca;
 }
 
+/* Asks for the ratings again after the scale changed. */
+.banner.rescale-banner {
+  margin: 0 14px 8px;
+  padding: 10px 8px 10px 14px;
+  background: rgba(139, 92, 246, 0.16);
+  border-color: rgba(167, 139, 250, 0.35);
+  color: #e4dcff;
+  line-height: 1.4;
+}
+
+.rescale-banner button {
+  flex: none;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+}
+
 .recs-bar {
   padding-left: 4px;
 }
@@ -1017,9 +1033,15 @@ main {
   font-size: 0.82rem;
 }
 
+.rate-count-links {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
 /* Suggested or current rating, above the title on the card. */
 .card-note {
-  --hue: calc((var(--s, 5) - 1) * 17.14);
+  --hue: calc((var(--s, 5) - 1) * 17.14 + max(0, var(--s, 5) - 8) * 152.88);
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1051,7 +1073,7 @@ main {
 }
 
 .pad-btn.rate-btn {
-  --hue: calc((var(--s) - 1) * 17.14);
+  --hue: calc((var(--s) - 1) * 17.14 + max(0, var(--s) - 8) * 152.88);
   gap: 5px;
   border-color: hsl(var(--hue) 70% 60% / 0.2);
   background: hsl(var(--hue) 70% 55% / 0.08);
@@ -1073,6 +1095,16 @@ main {
   color: currentColor;
 }
 
+/* The 9 keeps the yellow star of the favorite. */
+.pad-btn.rate-btn.fav svg,
+.grade-num svg {
+  color: #facc15;
+}
+
+.pad-btn.rate-btn.fav.is-aim svg {
+  color: #0b0c10;
+}
+
 .pad-btn.rate-btn:hover:not(:disabled) {
   background: hsl(var(--hue) 70% 55% / 0.18);
 }
@@ -1092,13 +1124,13 @@ main {
 
 .score-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 5px;
   margin-top: 16px;
 }
 
 .score {
-  --hue: calc((var(--s) - 1) * 17.14);
+  --hue: calc((var(--s) - 1) * 17.14 + max(0, var(--s) - 8) * 152.88);
   padding: 13px 0;
   border-radius: 14px;
   font-size: 1.1rem;
@@ -1168,7 +1200,7 @@ main {
 }
 
 .rated-score {
-  --hue: calc((var(--s) - 1) * 17.14);
+  --hue: calc((var(--s) - 1) * 17.14 + max(0, var(--s) - 8) * 152.88);
   min-width: 34px;
   text-align: center;
   font-weight: 800;
@@ -2161,6 +2193,110 @@ input[role='switch']:checked::after {
   height: 22px;
 }
 
+/* Rating guide: taller than a phone screen, so it scrolls and centers when it fits. */
+.guide-backdrop.scrolls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.guide-backdrop.scrolls > .guide {
+  margin: auto 0;
+}
+
+.rating-guide {
+  max-width: 440px;
+  align-items: stretch;
+}
+
+.guide-notice {
+  margin: 12px 0 0 !important;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(139, 92, 246, 0.16);
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  color: #e4dcff !important;
+  font-weight: 650;
+  text-align: left;
+}
+
+.grade-list {
+  list-style: none;
+  margin: 14px 0 16px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  text-align: left;
+}
+
+.grade-list li {
+  --hue: calc((var(--s) - 1) * 17.14 + max(0, var(--s) - 8) * 152.88);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px 9px 9px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  animation: item-in 260ms var(--ease-out) both;
+}
+
+.grade-num {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: hsl(var(--hue) 70% 55% / 0.16);
+  color: hsl(var(--hue) 85% 70%);
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.grade-num svg {
+  width: 13px;
+  height: 13px;
+}
+
+.grade-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.grade-text strong {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.grade-move {
+  flex: none;
+  min-width: 22px;
+  color: var(--faint);
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.grade-move.words {
+  max-width: 64px;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  text-align: right;
+}
+
 .guide-taps {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2960,7 +3096,7 @@ span.friend {
 }
 
 .take-chip.rated {
-  --hue: calc((var(--s) - 1) * 17.14);
+  --hue: calc((var(--s) - 1) * 17.14 + max(0, var(--s) - 8) * 152.88);
   background: hsl(var(--hue) 70% 55% / 0.16);
   color: hsl(var(--hue) 85% 72%);
   font-size: 0.85rem;

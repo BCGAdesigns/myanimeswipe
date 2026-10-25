@@ -31,6 +31,8 @@ export interface RemoteChange {
   rev: number
   entry: Entry | null
   media?: Media
+  /** A rating from the old 1 to 8 scale that went back to the rating queue when it arrived. */
+  rescaled?: boolean
 }
 
 export interface SyncMeta {

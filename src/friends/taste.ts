@@ -1,4 +1,4 @@
-// Taste test: two friends rate the same titles from 1 to 8, each on their own device, and guess
+// Taste test: two friends rate the same titles from 1 to 9, each on their own device, and guess
 // the rating the other one gives. Nobody sees the other's answers until both finish; the result
 // shows how close their tastes are and who knows the other better.
 import { signalWeight } from '../recs/engine'
@@ -11,7 +11,7 @@ export interface TestItem {
 }
 
 export interface TestAnswer {
-  /** The person's own rating, 1 to 8; null when they have not seen it. */
+  /** The person's own rating, 1 to 9; null when they have not seen it. */
   rating: number | null
   /** The rating they think the other person gives; null for "não viu". */
   guess: number | null
@@ -24,12 +24,12 @@ export const TEST_SIZE = 8
 /** Ratings worth the same distance apart as the friend compatibility: 3 or more is no agreement. */
 const GAP_SCALE = 3
 
-/** The first tests used words; they map onto the 1 to 8 scale. */
+/** The first tests used words; they map onto the 1 to 9 scale. */
 const OLD_OPINION: Record<string, number | null> = { love: 8, like: 6, meh: 4, dislike: 2, unseen: null }
 
 const asRating = (v: unknown): number | null | undefined => {
   if (v === null) return null
-  if (typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 8) return v
+  if (typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 9) return v
   if (typeof v === 'string' && v in OLD_OPINION) return OLD_OPINION[v]
   return undefined
 }

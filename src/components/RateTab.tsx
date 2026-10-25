@@ -1,38 +1,49 @@
-import { Check, ChevronDown, ChevronLeft, Eye, EyeOff, Star, Undo2 } from 'lucide-react'
+import { ChevronDown, ChevronLeft, CircleHelp, Eye, EyeOff, Star, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { arrangeEntries } from '../library'
 import { classifyRateSwipe, rateQueue, ratedList, rateVector } from '../logic'
-import { fromStars, STARS, toStars } from '../rating'
+import { FAVORITE_STARS, fromStars, STARS, toStars } from '../rating'
 import { useStore } from '../store'
 import { LibraryControls, usePersistentView } from './LibraryControls'
 import { Cover, coverThumb, MediaCard, metaLine, preloadCover } from './MediaCard'
+import { RatingGuide, ratingGuideSeen } from './RatingGuide'
 import { SwipeCard, type ActionStyle, type SwipeCardHandle } from './SwipeCard'
 
-type RateKey = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8'
+type RateKey = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
 type RateAction = RateKey | 'skip'
 
-/** Red for 1 through yellow to green for 8. */
-export const starHue = (stars: number) => Math.round(((stars - 1) * 120) / 7)
+/** Red for 1 through yellow to green for 8; the 9, the favorite, stands apart in violet. */
+export const starHue = (stars: number) => (stars >= FAVORITE_STARS ? 290 : Math.round(((stars - 1) * 120) / 7))
+
+const FAVORITE_COLOR = '#facc15'
 
 const RATE_STYLES = {
   ...Object.fromEntries(
-    STARS.map((n) => [
+    STARS.filter((n) => n < FAVORITE_STARS).map((n) => [
       String(n),
       { text: `NOTA ${n}`, color: `hsl(${starHue(n)} 80% 66%)`, vector: rateVector(n), icon: <Star strokeWidth={2.6} fill="currentColor" /> },
     ]),
   ),
+  // Like the favorite in Descobrir: the card stays and celebrates instead of flying off.
+  9: {
+    text: 'NOTA 9',
+    color: FAVORITE_COLOR,
+    vector: [0, -1],
+    icon: <Star strokeWidth={2.6} fill="currentColor" />,
+    burst: { emoji: '⭐', caption: 'Nota 9, favorito!', holdMs: 900 },
+  },
   skip: { text: 'PULAR', color: '#9ca3af', vector: [-1, 0], icon: <ChevronLeft strokeWidth={2.6} /> },
 } as Record<RateAction, ActionStyle>
 
 const EDIT_STYLES: Record<RateAction, ActionStyle> = { ...RATE_STYLES, skip: { ...RATE_STYLES.skip, text: 'CANCELAR' } }
 
 // Pad that mirrors the drag directions, like the one in Descobrir: 8 up, one less at each step
-// clockwise. The last row holds what has no direction.
-const PAD: (number | 'undo' | 'skip' | 'confirm' | 'hide')[] = [
+// clockwise, and the 9 in the middle, where the card is tapped twice or held.
+const PAD: (number | 'undo' | 'skip' | 'hide')[] = [
   1, 8, 7,
-  2, 'undo', 6,
+  2, 9, 6,
   3, 4, 5,
-  'skip', 'confirm', 'hide',
+  'skip', 'undo', 'hide',
 ]
 
 // Per-device preference, separate from the Descobrir pad; storage can be unavailable (private
@@ -58,13 +69,14 @@ function writeShowPad(show: boolean) {
 const keyOf = (stars: number) => String(stars) as RateKey
 
 export function RateTab() {
-  const { entries, media, rate, skipRating, undo, canUndo } = useStore()
+  const { entries, media, rate, skipRating, undo, canUndo, rescaleNotice, dismissRescaleNotice } = useStore()
   const [editingId, setEditingId] = useState<string | null>(null)
   /** The rating the drag points at right now. */
   const [aim, setAim] = useState<number | null>(null)
   const [details, setDetails] = useState(false)
   const [showPad, setShowPad] = useState(readShowPad)
   const [returning, setReturning] = useState<string | null>(null)
+  const [guide, setGuide] = useState(false)
   const cardRef = useRef<SwipeCardHandle<RateAction>>(null)
   const deckRef = useRef<HTMLDivElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
@@ -82,6 +94,17 @@ export function RateTab() {
   const stored = current ? ((editingId ? current.rating : null) ?? current.suggestedRating) : null
   const highlighted = stored === null ? null : toStars(stored)
   const cardKey = current ? `${current.mediaId}-${current.queuedAt}-${editingId ?? ''}` : ''
+  const hasCard = Boolean(current && currentMedia)
+
+  // Before the first rating (and once after the scale changed), what each rating means.
+  useEffect(() => {
+    if (hasCard && !ratingGuideSeen()) setGuide(true)
+  }, [hasCard])
+
+  const closeGuide = useCallback(() => {
+    setGuide(false)
+    dismissRescaleNotice()
+  }, [dismissRescaleNotice])
 
   useEffect(() => setDetails(false), [cardKey])
 
@@ -111,7 +134,7 @@ export function RateTab() {
     setShowPad(!showPad)
   }
 
-  // Typed with skip too, so the card also knows the Pular fling.
+  // Dragging gives 1 to 8; typed with 9 and skip too, so the card also knows those flings.
   const classify = (dx: number, dy: number, threshold?: number): RateAction | null => {
     const stars = classifyRateSwipe(dx, dy, threshold)
     return stars === null ? null : keyOf(stars)
@@ -123,14 +146,16 @@ export function RateTab() {
     if (a === 'skip') {
       if (!editingId) skipRating(current.mediaId)
     } else {
-      navigator.vibrate?.(8)
+      // The 9 celebrates with its own buzz.
+      if (a !== '9') navigator.vibrate?.(8)
       rate(current.mediaId, fromStars(Number(a)))
     }
     setEditingId(null)
   }
 
-  const confirm = () => {
-    if (highlighted !== null) cardRef.current?.fling(keyOf(highlighted))
+  const giveNine = () => {
+    navigator.vibrate?.(15)
+    cardRef.current?.fling('9')
   }
 
   const doUndo = useCallback(() => {
@@ -143,7 +168,7 @@ export function RateTab() {
     topRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  // Desktop: number keys rate, Enter confirms the suggestion, P skips, Z undoes.
+  // Desktop: number keys rate, F gives 9, Enter confirms the suggestion, P skips, Z undoes.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target
@@ -152,7 +177,8 @@ export function RateTab() {
       const card = cardRef.current
       if (e.key === 'z') doUndo()
       else if (!card) return
-      else if (/^[1-8]$/.test(e.key)) card.fling(e.key as RateKey)
+      else if (/^[1-9]$/.test(e.key)) card.fling(e.key as RateKey)
+      else if (e.key === 'f') card.fling('9')
       else if (e.key === 'Enter' && highlighted !== null) card.fling(keyOf(highlighted))
       else if (e.key === 'p') card.fling('skip')
       else return
@@ -166,16 +192,21 @@ export function RateTab() {
 
   return (
     <div className="rate-tab">
-      <div ref={topRef} className={`rate-top${current && currentMedia ? '' : ' done'}`}>
+      <div ref={topRef} className={`rate-top${hasCard ? '' : ' done'}`}>
         {current && currentMedia ? (
           <>
             <p className="rate-count">
               <span>{editingId ? 'Mudando a nota' : `${queue.length} ${queue.length === 1 ? 'título' : 'títulos'} para avaliar`}</span>
-              {allRated.length > 0 && (
-                <button className="link-btn" onClick={() => ratedRef.current?.scrollIntoView({ behavior: 'smooth' })}>
-                  Avaliados {allRated.length} <ChevronDown size={14} />
+              <span className="rate-count-links">
+                <button className="link-btn" onClick={() => setGuide(true)} aria-label="Como dar nota">
+                  <CircleHelp size={15} /> Notas
                 </button>
-              )}
+                {allRated.length > 0 && (
+                  <button className="link-btn" onClick={() => ratedRef.current?.scrollIntoView({ behavior: 'smooth' })}>
+                    Avaliados {allRated.length} <ChevronDown size={14} />
+                  </button>
+                )}
+              </span>
             </p>
             <div className="deck" ref={deckRef}>
               {nextMedia && (
@@ -193,28 +224,24 @@ export function RateTab() {
                 onProgress={onProgress}
                 onPreview={(a) => setAim(a && a !== 'skip' ? Number(a) : null)}
                 onTap={() => setDetails((d) => !d)}
-                onDoubleTap={confirm}
+                onDoubleTap={giveNine}
+                onLongPress={() => cardRef.current?.fling('9')}
               >
                 <MediaCard
                   media={currentMedia}
                   showDetails={details}
                   note={
-                    highlighted !== null ? (
+                    highlighted !== null && (
                       <p className="card-note" style={{ ['--s' as string]: highlighted }}>
-                        {current.favorite && <Star className="fav-star" size={13} fill="currentColor" />}
-                        {editingId ? 'Nota atual' : 'Sugestão'} <strong>{highlighted}</strong>
+                        {editingId ? 'Nota atual' : 'Sugestão'}{' '}
+                        <strong>
+                          {highlighted === FAVORITE_STARS && <Star size={13} fill="currentColor" strokeWidth={0} />}
+                          {highlighted}
+                        </strong>
                       </p>
-                    ) : current.favorite ? (
-                      <p className="card-note">
-                        <Star className="fav-star" size={13} fill="currentColor" /> Favorito
-                      </p>
-                    ) : undefined
+                    )
                   }
-                  hint={
-                    highlighted !== null
-                      ? `Arraste até a nota · 2 toques: confirma ${highlighted} · toque: sinopse`
-                      : 'Arraste até a nota · toque: sinopse'
-                  }
+                  hint="Arraste até a nota · 2 toques ou segurar: 9, favorito · toque: sinopse"
                 />
               </SwipeCard>
             </div>
@@ -222,13 +249,14 @@ export function RateTab() {
               <div className="pad">
                 {PAD.map((cell) => {
                   if (typeof cell === 'number') {
+                    const fav = cell === FAVORITE_STARS
                     return (
                       <button
                         key={cell}
-                        className={`pad-btn rate-btn${cell === highlighted ? ' is-suggested' : ''}${cell === aim ? ' is-aim' : ''}`}
+                        className={`pad-btn rate-btn${fav ? ' fav' : ''}${cell === highlighted ? ' is-suggested' : ''}${cell === aim ? ' is-aim' : ''}`}
                         style={{ ['--s' as string]: cell }}
-                        aria-label={`Nota ${cell}`}
-                        onClick={() => cardRef.current?.fling(keyOf(cell))}
+                        aria-label={fav ? 'Nota 9, favorito' : `Nota ${cell}`}
+                        onClick={() => (fav ? giveNine() : cardRef.current?.fling(keyOf(cell)))}
                       >
                         <Star fill="currentColor" strokeWidth={0} /> {cell}
                       </button>
@@ -245,19 +273,6 @@ export function RateTab() {
                     return (
                       <button key={cell} className="pad-btn quiet" onClick={() => cardRef.current?.fling('skip')}>
                         <ChevronLeft /> {skipLabel}
-                      </button>
-                    )
-                  }
-                  if (cell === 'confirm') {
-                    return (
-                      <button
-                        key={cell}
-                        className={`pad-btn${highlighted === null ? ' quiet' : ''}`}
-                        style={{ ['--c' as string]: '#4ade80' }}
-                        disabled={highlighted === null}
-                        onClick={confirm}
-                      >
-                        <Check /> {highlighted === null ? 'Confirmar' : `Confirmar ${highlighted}`}
                       </button>
                     )
                   }
@@ -288,12 +303,20 @@ export function RateTab() {
               ⭐
             </p>
             <h2>Tudo avaliado</h2>
-            <p>O que você marcar como já visto aparece aqui para receber nota de 1 a 8, arrastando na direção da nota.</p>
-            {canUndo && (
-              <button onClick={doUndo}>
-                <Undo2 size={16} /> Desfazer
+            <p>
+              O que você marcar como já visto aparece aqui para receber nota de 1 a 9: arraste na direção da nota, e 2 toques
+              ou segurar dão 9, o favorito.
+            </p>
+            <div className="row center">
+              <button onClick={() => setGuide(true)}>
+                <CircleHelp size={16} /> O que cada nota significa
               </button>
-            )}
+              {canUndo && (
+                <button onClick={doUndo}>
+                  <Undo2 size={16} /> Desfazer
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -335,6 +358,8 @@ export function RateTab() {
           </ul>
         </section>
       )}
+
+      {guide && <RatingGuide rescaled={rescaleNotice} onClose={closeGuide} />}
     </div>
   )
 }

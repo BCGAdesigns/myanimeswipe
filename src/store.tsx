@@ -3,6 +3,7 @@ import { APP_NAME } from './brand'
 import * as db from './db'
 import { applyAction } from './logic'
 import { DEFAULT_PREFS, filterHash, normalizePrefs, type Preferences } from './prefs'
+import { FAVORITE_STARS, fromStars, rescaled } from './rating'
 import { buildRecs, type RecsCache } from './recs/engine'
 import { fetchAnimeRecs } from './sources/anilist'
 import {
@@ -49,10 +50,12 @@ interface Store {
   swipe: (mediaId: string, action: SwipeAction, via: Entry['via']) => void
   /** Classifies a title that may not be in any catalog yet (search, a friend's list). */
   classify: (m: Media, action: SwipeAction, via: Entry['via']) => void
+  /** Saves a stored 0 to 10 rating; the top one (shown 9) also marks the favorite, any other clears it. */
   rate: (mediaId: string, rating: number) => void
   skipRating: (mediaId: string) => void
   /** Deletes the record so the card returns to the deck as unseen. */
   removeEntry: (mediaId: string) => void
+  /** Favorite and 9 are the same: favoriting gives 9, unfavoriting a 9 makes it 8. */
   toggleFavorite: (mediaId: string) => void
   undo: () => string | null
   loadMore: (source: SourceKey) => Promise<void>
@@ -70,6 +73,9 @@ interface Store {
   signOut: () => Promise<void>
   syncNow: () => void
   deleteAccount: () => Promise<void>
+  /** Ratings from the old 1 to 8 scale went back to the queue and the person was not told yet. */
+  rescaleNotice: boolean
+  dismissRescaleNotice: () => void
 }
 
 const Ctx = createContext<Store | null>(null)
@@ -81,6 +87,29 @@ export function useStore() {
 }
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
+
+/** Stored values of the top rating (9, the favorite) and of the one below it (8). */
+const TOP = fromStars(FAVORITE_STARS)
+const BELOW_TOP = fromStars(FAVORITE_STARS - 1)
+
+const NOTICE_KEY = 'watchmatch:rescaleNotice'
+
+function readNotice() {
+  try {
+    return localStorage.getItem(NOTICE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeNotice(on: boolean) {
+  try {
+    if (on) localStorage.setItem(NOTICE_KEY, '1')
+    else localStorage.removeItem(NOTICE_KEY)
+  } catch {
+    // Shown for this visit only.
+  }
+}
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false)
@@ -95,6 +124,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [recs, setRecs] = useState<RecsCache | null>(null)
   const [recsStatus, setRecsStatus] = useState<RecsStatus>('idle')
   const [recsError, setRecsError] = useState<string | null>(null)
+  const [rescaleNotice, setRescaleNotice] = useState(readNotice)
+
+  const raiseRescaleNotice = useCallback(() => {
+    writeNotice(true)
+    setRescaleNotice(true)
+  }, [])
+
+  const dismissRescaleNotice = useCallback(() => {
+    writeNotice(false)
+    setRescaleNotice(false)
+  }, [])
 
   // Refs mirror state so async callbacks never act on a stale snapshot. Catalogs and prefs are
   // written through commit helpers, so concurrent page loads merge instead of overwriting.
@@ -106,6 +146,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const catalogsRef = useRef<Catalogs>({})
   const loadingRef = useRef(new Set<SourceKey>())
   const recsBuilding = useRef(false)
+  /** The sync scheduler, which only exists after useCloudSync below. */
+  const scheduleRef = useRef<(delay?: number) => void>(() => {})
 
   const commitPrefs = useCallback((next: Preferences) => {
     prefsRef.current = next
@@ -149,7 +191,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return copy
       })
     }
-  }, [])
+    // Old scale ratings that arrived went back to the queue here: tell the person, send them up.
+    if (changes.some((c) => c.rescaled)) {
+      raiseRescaleNotice()
+      scheduleRef.current()
+    }
+  }, [raiseRescaleNotice])
 
   const applyRemotePrefs = useCallback(
     (remote: Preferences) => {
@@ -168,9 +215,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     syncNow,
     deleteAccount: deleteCloudAccount,
   } = useCloudSync({ onApplied: applyRemote, getPrefs: () => prefsRef.current, onRemotePrefs: applyRemotePrefs })
+  scheduleRef.current = schedule
 
   useEffect(() => {
-    db.loadAll()
+    db.rescaleOldRatings()
+      .then((count) => count > 0 && raiseRescaleNotice())
+      .catch(() => {})
+      .then(() => db.loadAll())
       .then((data) => {
         const loadedPrefs = data.prefs ? normalizePrefs(data.prefs) : null
         let loadedCatalogs = data.catalogs ?? {}
@@ -196,7 +247,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       })
       .catch((e) => setError(`Falha ao abrir o banco local: ${errorText(e)}`))
       .finally(() => setReady(true))
-  }, [])
+  }, [raiseRescaleNotice])
 
   const setPrefs = useCallback<Store['setPrefs']>(
     (next) => {
@@ -242,7 +293,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (mediaId, rating) => {
       const prev = entriesRef.current.get(mediaId)
       if (!prev) return
-      writeEntry({ ...prev, status: 'seen', rating, updatedAt: Date.now() }, prev)
+      writeEntry({ ...prev, status: 'seen', rating, favorite: rating === TOP, updatedAt: Date.now() }, prev)
     },
     [writeEntry],
   )
@@ -260,7 +311,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     (mediaId) => {
       const prev = entriesRef.current.get(mediaId)
       if (!prev) return
-      writeEntry({ ...prev, favorite: !prev.favorite, updatedAt: Date.now() }, prev)
+      const next: Entry = prev.favorite
+        ? {
+            ...prev,
+            favorite: false,
+            rating: prev.rating === TOP ? BELOW_TOP : prev.rating,
+            suggestedRating: prev.suggestedRating === TOP ? BELOW_TOP : prev.suggestedRating,
+          }
+        : { ...prev, favorite: true, status: 'seen', rating: prev.rating === null ? null : TOP, suggestedRating: TOP }
+      writeEntry({ ...next, updatedAt: Date.now() }, prev)
     },
     [writeEntry],
   )
@@ -387,7 +446,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         throw new Error(`Arquivo não é um backup do ${APP_NAME}.`)
       }
       const now = Date.now()
-      const imported = file.entries.map((e) => ({ ...e, rev: now }))
+      // Backups from before the 1 to 9 scale bring their ratings back as suggestions.
+      const imported = file.entries.map((e) => ({ ...(rescaled(e) ?? e), rev: now }))
       await db.saveMedia(file.media ?? [])
       await db.saveLocalEntries(imported)
       addMedia(file.media ?? [])
@@ -459,6 +519,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         signOut,
         syncNow,
         deleteAccount,
+        rescaleNotice,
+        dismissRescaleNotice,
       }}
     >
       {children}

@@ -6,7 +6,7 @@ import { shortName } from '../friends/feed'
 import { useSocial } from '../friends/social'
 import { genreLabel } from '../genres'
 import { KIND_BADGES } from '../prefs'
-import { fromStars, STARS, toStars } from '../rating'
+import { FAVORITE_STARS, fromStars, STARS, toStars } from '../rating'
 import { useStore } from '../store'
 import type { Entry, Media, SwipeAction } from '../types'
 import { Cover, metaLine } from './MediaCard'
@@ -25,7 +25,7 @@ const SOURCE_NAME = { anilist: 'AniList', tmdb: 'TMDB' } as const
 export function statusText(e: Entry): string {
   switch (e.status) {
     case 'seen': {
-      if (e.rating !== null) return `Já vi · nota ${toStars(e.rating)}`
+      if (e.rating !== null) return toStars(e.rating) === FAVORITE_STARS ? 'Já vi · nota 9, favorito' : `Já vi · nota ${toStars(e.rating)}`
       return e.suggestedRating !== null ? `Já vi · falta confirmar a nota (${toStars(e.suggestedRating)})` : 'Já vi · sem nota'
     }
     case 'want':
@@ -57,7 +57,7 @@ interface Props {
 
 /** Everything about one title, and every way to classify it, outside the swipe decks. */
 export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
-  const { entries, classify, rate, removeEntry, toggleFavorite } = useStore()
+  const { entries, classify, rate, removeEntry } = useStore()
   const { me, myId, friends } = useSocial()
   const entry = entries.get(media.id)
   const [more, setMore] = useState(false)
@@ -206,19 +206,14 @@ export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
                 key={s}
                 className={s === current ? 'score active' : 'score'}
                 style={{ ['--s' as string]: s }}
-                aria-label={`Nota ${s}`}
+                aria-label={s === FAVORITE_STARS ? 'Nota 9, favorito' : `Nota ${s}`}
                 onClick={() => rate(media.id, fromStars(s))}
               >
                 {s}
               </button>
             ))}
           </div>
-          <div className="row">
-            <button onClick={() => toggleFavorite(media.id)}>
-              <Star fill={entry?.favorite ? 'currentColor' : 'none'} />
-              {entry?.favorite ? 'Tirar dos favoritos' : 'Favoritar'}
-            </button>
-          </div>
+          <p className="small muted">O 9 é o favorito.</p>
         </>
       )}
 

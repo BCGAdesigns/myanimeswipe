@@ -22,8 +22,8 @@ export function classifySwipe(dx: number, dy: number, threshold = SWIPE_THRESHOL
 
 /**
  * Rating tab: the eight directions are the ratings 1 to 8, like a dial: 8 straight up, then one
- * less at each step clockwise (↑ 8, ↗ 7, → 6, ↘ 5, ↓ 4, ↙ 3, ← 2, ↖ 1). Indexed like COMPASS,
- * counter-clockwise from the right.
+ * less at each step clockwise (↑ 8, ↗ 7, → 6, ↘ 5, ↓ 4, ↙ 3, ← 2, ↖ 1). The 9, the favorite, is a
+ * double tap or a long press. Indexed like COMPASS, counter-clockwise from the right.
  */
 const RATE_COMPASS = [6, 7, 8, 1, 2, 3, 4, 5]
 

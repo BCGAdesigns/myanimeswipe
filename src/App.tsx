@@ -19,6 +19,7 @@ import { LogoMark, Wordmark } from './components/Logo'
 import { Onboarding } from './components/Onboarding'
 import { PreferencesSheet } from './components/PreferencesSheet'
 import { RateTab } from './components/RateTab'
+import { RatingGuide } from './components/RatingGuide'
 import { RecsTab } from './components/RecsTab'
 import { SearchSheet } from './components/SearchSheet'
 import { Settings } from './components/Settings'
@@ -93,10 +94,10 @@ function initialTab(): Tab {
 }
 
 export function App() {
-  const { ready, prefs, entries, error, cloud } = useStore()
+  const { ready, prefs, entries, error, cloud, rescaleNotice, dismissRescaleNotice } = useStore()
   const { badge } = useSocial()
   const [tab, setTab] = useState<Tab>(initialTab)
-  const [sheet, setSheet] = useState<'settings' | 'prefs' | 'guide' | 'search' | null>(null)
+  const [sheet, setSheet] = useState<'settings' | 'prefs' | 'guide' | 'ratingGuide' | 'search' | null>(null)
   const [guideDone, setGuideDone] = useState(guideSeen)
   const [link, setLink] = useState(openedWith)
   const clearLink = useCallback(() => {
@@ -142,6 +143,18 @@ export function App() {
         </div>
       </header>
 
+      {/* The scale changed and old ratings went back to the queue: ask for them again. */}
+      {rescaleNotice && tab !== 'rate' && (
+        <div className="banner rescale-banner" role="status">
+          <span>
+            As notas mudaram para 1 a 9, e o 9 é o favorito. Suas notas voltaram para a aba Avaliar: reavalie no sistema novo.
+          </span>
+          <button className="primary" onClick={() => setTab('rate')}>
+            Reavaliar
+          </button>
+        </div>
+      )}
+
       {error && <div className="toast">{error}</div>}
       {/* A failed magic link lands here signed out; surface it without opening settings. */}
       {cloud.status === 'signed-out' && cloud.message && <div className="toast">{cloud.message}</div>}
@@ -171,9 +184,23 @@ export function App() {
       </nav>
 
       {sheet === 'settings' && (
-        <Settings onClose={() => setSheet(null)} onOpenPrefs={openPrefs} onOpenGuide={() => setSheet('guide')} />
+        <Settings
+          onClose={() => setSheet(null)}
+          onOpenPrefs={openPrefs}
+          onOpenGuide={() => setSheet('guide')}
+          onOpenRatingGuide={() => setSheet('ratingGuide')}
+        />
       )}
       {sheet === 'prefs' && <PreferencesSheet onClose={() => setSheet(null)} />}
+      {sheet === 'ratingGuide' && (
+        <RatingGuide
+          rescaled={rescaleNotice}
+          onClose={() => {
+            setSheet(null)
+            dismissRescaleNotice()
+          }}
+        />
+      )}
       {sheet === 'search' && <SearchSheet onClose={() => setSheet(null)} />}
       {(sheet === 'guide' || (ready && !guideDone && tab === 'discover' && sheet === null)) && (
         <GestureGuide

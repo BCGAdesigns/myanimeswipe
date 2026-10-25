@@ -168,8 +168,8 @@ describe('compareLists', () => {
     expect(c.bothWant).toEqual(['w1'])
     expect(c.bothLoved).toEqual(['l3', 'l1'])
     expect(c.theyRecommend.map((s) => s.id)).toEqual(['r1', 't1'])
-    // Shown on the 1 to 8 scale: the stored 9 is a 7.
-    expect(c.theyRecommend[1].take.rating).toBe(7)
+    // Shown on the 1 to 9 scale: the stored 9 is an 8.
+    expect(c.theyRecommend[1].take.rating).toBe(8)
     // Already on their Quero ver: the user can tell them, rather than recommend.
     expect(c.youCanTell.map((s) => s.id)).toEqual(['mine1'])
     expect(c.youRecommend).toEqual([])
@@ -181,12 +181,12 @@ describe('compareLists', () => {
 
   it('scores compatibility from the ratings, pulled toward 50% while there is little in common', () => {
     const c = compareLists(mine, myMedia, theirs)
-    // On the 1 to 8 scale the gaps are 0, 1, 0 and 5: agreement 1 + 2/3 + 1 + 0 over 4 titles,
-    // plus 2 titles' worth of 50%.
-    expect(c.compatibility).toBe(61)
+    // On the 1 to 9 scale the gaps are 0, 0, 0 and 5 (the stored 8 and 7 both show 7): agreement
+    // 1 + 1 + 1 + 0 over 4 titles, plus 2 titles' worth of 50%.
+    expect(c.compatibility).toBe(67)
     expect(c.ratedTogether).toBe(4)
-    expect(c.meanGap).toBe(1.5)
-    expect(c.sameRating).toBe(2)
+    expect(c.meanGap).toBe(1.25)
+    expect(c.sameRating).toBe(3)
 
     const many = Array.from({ length: 10 }, (_, i) => `x${i}`)
     const same = compareLists(
@@ -239,7 +239,8 @@ describe('compareLists', () => {
   })
 
   it('counts profile numbers', () => {
-    expect(listStats(theirs.entries)).toEqual({ seen: 6, rated: 5, average: 6, favorites: 1, want: 2, watching: 0 })
+    // Shown 8, 7, 9, 3 and 8.
+    expect(listStats(theirs.entries)).toEqual({ seen: 6, rated: 5, average: 7, favorites: 1, want: 2, watching: 0 })
   })
 })
 
@@ -308,11 +309,12 @@ describe('taste test', () => {
       parseAnswers({
         a: { opinion: 'love', guess: 'meh' },
         b: { opinion: 'unseen' },
-        c: { rating: 9, guess: 1 },
+        c: { rating: 10, guess: 1 },
         d: { rating: 3, guess: null },
         e: null,
+        f: { rating: 9, guess: 9 },
       }),
-    ).toEqual({ a: { rating: 8, guess: 4 }, b: { rating: null, guess: null }, d: { rating: 3, guess: null } })
+    ).toEqual({ a: { rating: 8, guess: 4 }, b: { rating: null, guess: null }, d: { rating: 3, guess: null }, f: { rating: 9, guess: 9 } })
     expect(parseAnswers(null)).toBeNull()
   })
 })
@@ -320,8 +322,8 @@ describe('taste test', () => {
 describe('feed wording', () => {
   it('describes activity', () => {
     const base = { rating: null, suggestedRating: null, favorite: false }
-    expect(activityText({ ...base, status: 'seen', rating: 9 })).toBe('deu nota 7')
-    expect(activityText({ ...base, status: 'seen', suggestedRating: 10 })).toBe('deu nota 8')
+    expect(activityText({ ...base, status: 'seen', rating: 9 })).toBe('deu nota 8')
+    expect(activityText({ ...base, status: 'seen', suggestedRating: 10 })).toBe('deu nota 9')
     expect(activityText({ ...base, status: 'seen' })).toBe('já viu')
     expect(activityText({ ...base, status: 'seen', rating: 10, favorite: true })).toBe('favoritou')
     expect(activityText({ ...base, status: 'want' })).toBe('quer ver')

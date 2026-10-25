@@ -20,9 +20,10 @@ interface Props {
   onClose: () => void
   onOpenPrefs: () => void
   onOpenGuide: () => void
+  onOpenRatingGuide: () => void
 }
 
-export function Settings({ onClose, onOpenPrefs, onOpenGuide }: Props) {
+export function Settings({ onClose, onOpenPrefs, onOpenGuide, onOpenRatingGuide }: Props) {
   const { entries, exportData, importData, resetAll, cloud, deleteAccount } = useStore()
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -140,8 +141,9 @@ export function Settings({ onClose, onOpenPrefs, onOpenGuide }: Props) {
         <p>No teclado: setas, A assistindo, P pausa, L larguei, N não gostei, G gostei, F favorito e Z desfaz.</p>
         <h4 className="title-section">Na aba Avaliar</h4>
         <p>
-          Arraste o título na direção da nota: 8 para cima e a nota cai um a cada passo no sentido horário. Os botões embaixo do
-          cartão ficam na mesma posição, e dá para ocultá-los e usar só os gestos.
+          Arraste o título na direção da nota: 8 para cima e a nota cai um a cada passo no sentido horário. Dois toques ou
+          segurar o cartão dão 9, que é o favorito. Os botões embaixo do cartão ficam na mesma posição (o 9 no meio), e dá
+          para ocultá-los e usar só os gestos.
         </p>
         <ul className="gesture-help">
           <li>
@@ -169,12 +171,16 @@ export function Settings({ onClose, onOpenPrefs, onOpenGuide }: Props) {
             <b>↖</b> 1
           </li>
           <li>
-            <b>2×</b> Confirma a sugestão
+            <b>2×</b> 9, favorito
+          </li>
+          <li>
+            <b>●</b> Segurar: 9, favorito
           </li>
         </ul>
-        <p>No teclado: 1 a 8 dão a nota, Enter confirma a sugestão, P pula e Z desfaz.</p>
+        <p>No teclado: 1 a 9 dão a nota, F dá 9, Enter confirma a sugestão, P pula e Z desfaz.</p>
         <div className="row">
           <button onClick={onOpenGuide}>Ver guia de gestos</button>
+          <button onClick={onOpenRatingGuide}>O que cada nota significa</button>
         </div>
       </section>
 

@@ -85,7 +85,7 @@ export function TestsView({ startWith, onStarted, onOpenFriend }: Props) {
           <FlaskConical /> Teste de gosto
         </h3>
         <p>
-          Para cada título, você dá a sua nota de 1 a 8 e chuta a nota que a outra pessoa daria. Ela faz o mesmo no próprio
+          Para cada título, você dá a sua nota de 1 a 9 e chuta a nota que a outra pessoa daria. Ela faz o mesmo no próprio
           aparelho, e ninguém vê as respostas do outro antes de os dois terminarem. No fim aparece o quanto os gostos
           combinam e quem conhece melhor o outro.
         </p>
