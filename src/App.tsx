@@ -11,7 +11,7 @@ import {
   Star,
   Users,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DiscoverTab } from './components/DiscoverTab'
 import { FriendsTab } from './components/FriendsTab'
 import { GestureGuide, guideSeen } from './components/GestureGuide'
@@ -23,6 +23,7 @@ import { RateTab } from './components/RateTab'
 import { RecsTab } from './components/RecsTab'
 import { SearchSheet } from './components/SearchSheet'
 import { Settings } from './components/Settings'
+import { myFriends } from './friends/api'
 import { rateQueue } from './logic'
 import { activeFilterCount } from './prefs'
 import { useStore } from './store'
@@ -38,9 +39,9 @@ const TABS: { id: Tab; label: string; Icon: typeof Compass }[] = [
 ]
 
 const params = new URLSearchParams(window.location.search)
-/** A friend's share link (?amigo=CODE) opens the comparison once. */
-const sharedCode = params.get('amigo')
-if (sharedCode) {
+/** An invite link (?amigo=username) opens the Friends tab with that person once. */
+const invitedHandle = params.get('amigo')
+if (invitedHandle) {
   params.delete('amigo')
   const rest = params.toString()
   window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''))
@@ -48,7 +49,7 @@ if (sharedCode) {
 
 /** Home screen shortcuts open a tab directly (?tab=recs). */
 function initialTab(): Tab {
-  if (sharedCode) return 'friends'
+  if (invitedHandle) return 'friends'
   const t = params.get('tab')
   return TABS.some((x) => x.id === t) ? (t as Tab) : 'discover'
 }
@@ -58,7 +59,26 @@ export function App() {
   const [tab, setTab] = useState<Tab>(initialTab)
   const [sheet, setSheet] = useState<'settings' | 'prefs' | 'guide' | 'search' | null>(null)
   const [guideDone, setGuideDone] = useState(guideSeen)
-  const [friendCode, setFriendCode] = useState(sharedCode)
+  const [friendHandle, setFriendHandle] = useState(invitedHandle)
+  const [incomingRequests, setIncomingRequests] = useState(0)
+  const clearFriendHandle = useCallback(() => setFriendHandle(null), [])
+
+  // Badge for friend requests waiting for an answer, refreshed when the app comes back.
+  useEffect(() => {
+    if (!cloud.email) {
+      setIncomingRequests(0)
+      return
+    }
+    const check = () => {
+      if (document.visibilityState !== 'visible') return
+      myFriends()
+        .then((rows) => setIncomingRequests(rows.filter((r) => r.state === 'incoming').length))
+        .catch(() => {})
+    }
+    check()
+    document.addEventListener('visibilitychange', check)
+    return () => document.removeEventListener('visibilitychange', check)
+  }, [cloud.email])
   const pending = useMemo(() => rateQueue(entries).length, [entries])
   const filters = prefs ? activeFilterCount(prefs) : 0
   const openPrefs = () => setSheet('prefs')
@@ -109,9 +129,10 @@ export function App() {
         {tab === 'lists' && <ListsTab />}
         {tab === 'friends' && (
           <FriendsTab
-            initialCode={friendCode}
-            onInitialHandled={() => setFriendCode(null)}
+            initialHandle={friendHandle}
+            onInitialHandled={clearFriendHandle}
             onOpenSettings={() => setSheet('settings')}
+            onRequestsChanged={setIncomingRequests}
           />
         )}
       </main>
@@ -127,6 +148,7 @@ export function App() {
             <Icon strokeWidth={tab === id ? 2.4 : 2} />
             {label}
             {id === 'rate' && pending > 0 && <span className="tab-badge">{pending}</span>}
+            {id === 'friends' && incomingRequests > 0 && <span className="tab-badge">{incomingRequests}</span>}
           </button>
         ))}
       </nav>

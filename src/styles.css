@@ -2533,6 +2533,150 @@ button.item-title:hover:not(:disabled) {
   line-height: 1.25;
 }
 
+/* Friends: profile, people and requests */
+
+.me-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.me-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.me-info strong {
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.me-info span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.me-card .primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+}
+
+.me-card .primary svg {
+  width: 16px;
+  height: 16px;
+}
+
+.invite {
+  position: relative;
+  padding-right: 44px;
+}
+
+.invite-close {
+  position: absolute;
+  top: 8px;
+  right: 6px;
+}
+
+.friend-name small {
+  display: block;
+  color: var(--faint);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.friend-go {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.friend-list li > .primary,
+.person-row > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 8px 12px;
+  font-size: 0.84rem;
+}
+
+.friend-list li > .primary svg,
+.person-row > button svg {
+  width: 15px;
+  height: 15px;
+}
+
+span.friend {
+  cursor: default;
+}
+
+.person-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.person-row .friend {
+  min-width: 0;
+}
+
+.search-field.small {
+  height: 42px;
+  margin-top: 8px;
+}
+
+.at-input {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.at-input:focus-within {
+  border-color: var(--accent);
+}
+
+.at-input span {
+  padding: 0 4px 0 12px;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.at-input input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+  padding: 11px 12px 11px 0;
+}
+
+.skeleton-line {
+  height: 64px;
+  margin-top: 14px;
+  border-radius: 18px;
+  background: linear-gradient(110deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%);
+  background-size: 250% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.message.center {
+  text-align: center;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

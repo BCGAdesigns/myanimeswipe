@@ -1,37 +1,131 @@
-// Friend codes (`public.shares`) and reading a friend's list (`public.shared_list`).
+// Social layer client: profile card (`public.usernames`), friendships, feed, likes,
+// recommendations and taste tests. Everything about other people goes through the RPCs in
+// supabase/migrations/20261025150000_usernames_and_friendships.sql and 20261025170000_social.sql.
 import { getClient } from '../sync/client'
-import { parseSharedList, type SharedList } from './compare'
+import type { EntryStatus, Media } from '../types'
+import { parseSharedList, type SharedEntry } from './compare'
+import type { Answers, TestItem } from './taste'
 
-/** No i, l, o, 0 or 1: codes get read aloud and typed by hand. */
-const ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'
-export const CODE_LENGTH = 10
+export const USERNAME_RULE = /^[a-z0-9_.]{3,20}$/
+const CODE_RULE = /^[a-z0-9]{10}$/
 
-export function newShareCode(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(CODE_LENGTH))
-  return Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join('')
+/** "@Ana.Clara " becomes "ana.clara". */
+export function normalizeUsername(input: string): string {
+  return input.trim().replace(/^@+/, '').toLowerCase()
 }
 
-/** Accepts a bare code or a pasted share link. */
-export function codeFromInput(input: string): string | null {
-  const text = input.trim()
-  let candidate = text
+function fromLink(input: string, param: string): string | null {
   try {
-    const fromLink = new URL(text).searchParams.get('amigo')
-    if (fromLink) candidate = fromLink
+    return new URL(input.trim()).searchParams.get(param)
   } catch {
-    // Not a link: a typed code.
+    return null
   }
-  const code = candidate.toLowerCase().replace(/[^a-z0-9]/g, '')
-  return code.length === CODE_LENGTH ? code : null
 }
 
-export function shareLink(code: string): string {
-  return `${window.location.origin}${window.location.pathname}?amigo=${code}`
+/** Accepts @name, a bare name or a pasted profile link (?amigo=name). */
+export function usernameFromInput(input: string): string | null {
+  const name = normalizeUsername(fromLink(input, 'amigo') ?? input)
+  return USERNAME_RULE.test(name) ? name : null
 }
 
-export interface MyShare {
-  code: string
-  name: string | null
+/** Accepts a typed invite code (spaces allowed) or a pasted invite link (?convite=code). */
+export function inviteCodeFromInput(input: string): string | null {
+  const code = (fromLink(input, 'convite') ?? input).toLowerCase().replace(/[^a-z0-9]/g, '')
+  return CODE_RULE.test(code) ? code : null
+}
+
+const appUrl = () => `${window.location.origin}${window.location.pathname}`
+export const inviteLink = (code: string) => `${appUrl()}?convite=${code}`
+export const profileLink = (username: string) => `${appUrl()}?amigo=${username}`
+export const spacedCode = (code: string) => `${code.slice(0, 5)} ${code.slice(5)}`
+
+export interface Person {
+  userId: string
+  username: string
+  displayName: string | null
+  avatar: string | null
+}
+
+export interface MyProfile {
+  username: string
+  displayName: string | null
+  avatar: string | null
+  bio: string | null
+  inviteCode: string | null
+}
+
+export type FriendState = 'friend' | 'incoming' | 'outgoing'
+
+export interface FriendRow extends Person {
+  bio: string | null
+  state: FriendState
+  since: string
+}
+
+export interface FriendProfile extends Person {
+  bio: string | null
+  entries: SharedEntry[]
+}
+
+export interface FeedItem extends Person {
+  mediaId: string
+  status: EntryStatus
+  rating: number | null
+  suggestedRating: number | null
+  favorite: boolean
+  updatedAt: number
+  media: Media | null
+  likes: number
+  liked: boolean
+}
+
+export interface LikeReceived extends Person {
+  mediaId: string
+  media: Media | null
+  createdAt: string
+}
+
+interface RecBase extends Person {
+  id: string
+  mediaId: string
+  media: Media
+  note: string | null
+  createdAt: string
+  seenAt: string | null
+  likedAt: string | null
+}
+
+export type ReceivedRec = RecBase
+
+export interface SentRec extends RecBase {
+  dismissed: boolean
+  theirStatus: EntryStatus | null
+  theirRating: number | null
+  theirFavorite: boolean | null
+}
+
+export interface TasteTest extends Person {
+  id: string
+  createdByMe: boolean
+  items: TestItem[]
+  myAnswers: Answers | null
+  theirAnswers: Answers | null
+  myDone: boolean
+  theirDone: boolean
+  createdAt: string
+}
+
+/** Server messages the screens can explain. */
+function friendlyError(message: string): string {
+  if (/usernames_username_key|duplicate key/i.test(message)) return 'Esse nome de usuário já está em uso. Tente outro.'
+  if (/choose a username first/i.test(message)) return 'Crie seu perfil antes.'
+  if (/unknown invite/i.test(message)) return 'Código de convite inválido. Confira com quem te mandou.'
+  if (/own invite/i.test(message)) return 'Esse é o seu próprio código.'
+  if (/not friends/i.test(message)) return 'Vocês precisam ser amigos para isso.'
+  if (/unknown user|invalid friend/i.test(message)) return 'Pessoa não encontrada.'
+  if (/sign in first|JWT/i.test(message)) return 'Entre na sua conta primeiro.'
+  if (/failed to fetch|network|load failed/i.test(message)) return 'Sem conexão. Tente de novo.'
+  return message
 }
 
 async function client() {
@@ -40,36 +134,129 @@ async function client() {
   return c
 }
 
-export async function getMyShare(): Promise<MyShare | null> {
-  const { data, error } = await (await client()).from('shares').select('code, name').maybeSingle()
-  if (error) throw new Error(error.message)
-  return data
+async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
+  const { data, error } = await (await client()).rpc(fn, args)
+  if (error) throw new Error(friendlyError(error.message))
+  return data as T
 }
 
-export async function createShare(name: string | null): Promise<MyShare> {
-  const c = await client()
-  // A collision on a random 10 character code is very unlikely; try a couple of times anyway.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const { data, error } = await c.from('shares').insert({ code: newShareCode(), name }).select('code, name').single()
-    if (!error) return data
-    if (!/duplicate|unique/i.test(error.message)) throw new Error(error.message)
+type PersonRow = { user_id: string; username: string; display_name: string | null; avatar?: string | null }
+const toPerson = (r: PersonRow): Person => ({
+  userId: r.user_id,
+  username: r.username,
+  displayName: r.display_name,
+  avatar: r.avatar ?? null,
+})
+
+/** Card data travels without the long fields, like the cloud copies do. */
+export function mediaSnapshot(m: Media): Media {
+  const { synopsis: _synopsis, tags: _tags, ...rest } = m
+  return { ...rest, tags: [] }
+}
+
+export async function getMyProfile(): Promise<MyProfile | null> {
+  const { data, error } = await (await client())
+    .from('usernames')
+    .select('username, display_name, avatar, bio, invite_code')
+    .maybeSingle()
+  if (error) {
+    // Before the social migration the extra columns do not exist yet.
+    if (/column/i.test(error.message)) {
+      const basic = await (await client()).from('usernames').select('username, display_name').maybeSingle()
+      if (basic.error) throw new Error(friendlyError(basic.error.message))
+      return basic.data && { username: basic.data.username, displayName: basic.data.display_name, avatar: null, bio: null, inviteCode: null }
+    }
+    throw new Error(friendlyError(error.message))
   }
-  throw new Error('Não consegui gerar um código agora. Tente de novo.')
+  return (
+    data && {
+      username: data.username,
+      displayName: data.display_name,
+      avatar: data.avatar,
+      bio: data.bio,
+      inviteCode: data.invite_code,
+    }
+  )
 }
 
-export async function renameShare(code: string, name: string | null): Promise<void> {
-  const { error } = await (await client()).from('shares').update({ name }).eq('code', code)
-  if (error) throw new Error(error.message)
+export async function saveMyProfile(p: Omit<MyProfile, 'inviteCode'>): Promise<void> {
+  const { error } = await (await client())
+    .from('usernames')
+    .upsert(
+      { username: p.username, display_name: p.displayName, avatar: p.avatar, bio: p.bio },
+      { onConflict: 'user_id' },
+    )
+  if (error) throw new Error(friendlyError(error.message))
 }
 
-export async function stopSharing(code: string): Promise<void> {
-  const { error } = await (await client()).from('shares').delete().eq('code', code)
-  if (error) throw new Error(error.message)
+export const regenerateInvite = () => rpc<string>('regenerate_invite_code')
+
+export async function addByInvite(code: string): Promise<Person | null> {
+  const rows = await rpc<PersonRow[]>('add_by_invite', { code })
+  return rows?.[0] ? toPerson(rows[0]) : null
 }
 
-/** A friend's list by code; null when no one shares with that code. Works signed out. */
-export async function fetchSharedList(code: string): Promise<SharedList | null> {
-  const { data, error } = await (await client()).rpc('shared_list', { share_code: code })
-  if (error) throw new Error(error.message)
-  return parseSharedList(data)
+/** People whose username starts with the text (3 characters or more). */
+export async function findPeople(query: string): Promise<Person[]> {
+  return ((await rpc<PersonRow[]>('people_search', { query })) ?? []).map(toPerson)
 }
+
+/** Sends a request, or becomes friends right away when they had already asked. */
+export const requestFriend = (userId: string) => rpc<'requested' | 'friends'>('request_friend', { target: userId })
+export const respondFriend = (userId: string, accept: boolean) =>
+  rpc<void>('respond_friend', { requester_id: userId, accept })
+/** Ends a friendship or cancels a request. */
+export const removeFriend = (userId: string) => rpc<void>('remove_friend', { other: userId })
+
+export async function friendsOverview(): Promise<FriendRow[]> {
+  const rows = await rpc<(PersonRow & { bio: string | null; state: FriendState; since: string })[]>('friends_overview')
+  return (rows ?? []).map((r) => ({ ...toPerson(r), bio: r.bio, state: r.state, since: r.since }))
+}
+
+export async function fetchFriendProfile(userId: string): Promise<FriendProfile | null> {
+  const raw = await rpc<Record<string, unknown> | null>('friend_profile', { friend: userId })
+  if (!raw) return null
+  const list = parseSharedList(raw)
+  return {
+    userId,
+    username: String(raw.username ?? ''),
+    displayName: (raw.displayName as string | null) ?? null,
+    avatar: (raw.avatar as string | null) ?? null,
+    bio: (raw.bio as string | null) ?? null,
+    entries: list?.entries ?? [],
+  }
+}
+
+export const toggleLike = (userId: string, mediaId: string) => rpc<boolean>('toggle_like', { target: userId, media: mediaId })
+
+export async function fetchFeed(beforeMs?: number): Promise<FeedItem[]> {
+  const items = await rpc<FeedItem[]>('friends_feed', { before_ms: beforeMs ?? null, max_items: 40 })
+  return (items ?? []).map((i) => ({ ...i, media: i.media ? { ...i.media, tags: [], genres: i.media.genres ?? [] } : null }))
+}
+
+export const likesReceived = () => rpc<LikeReceived[]>('likes_received', { max_items: 30 }).then((x) => x ?? [])
+
+export const recommend = (userId: string, m: Media, note: string | null) =>
+  rpc<string>('recommend', { to_friend: userId, media_key: m.id, media_snapshot: mediaSnapshot(m), note_text: note })
+
+export const updateRecommendation = (id: string, change: { seen?: boolean; liked?: boolean; dismiss?: boolean }) =>
+  rpc<void>('update_recommendation', {
+    rec: id,
+    mark_seen: change.seen ?? false,
+    liked: change.liked ?? null,
+    dismiss: change.dismiss ?? false,
+  })
+
+export const unsendRecommendation = (id: string) => rpc<void>('unsend_recommendation', { rec: id })
+
+const withMedia = <T extends { media: Media }>(list: T[] | null) =>
+  (list ?? []).map((r) => ({ ...r, media: { ...r.media, tags: [], genres: r.media.genres ?? [] } }))
+
+export const receivedRecommendations = async () => withMedia(await rpc<ReceivedRec[]>('received_recommendations'))
+export const sentRecommendations = async () => withMedia(await rpc<SentRec[]>('sent_recommendations'))
+
+export const createTasteTest = (userId: string, items: TestItem[]) =>
+  rpc<string>('create_taste_test', { friend: userId, test_items: items })
+export const answerTasteTest = (id: string, answers: Answers) => rpc<void>('answer_taste_test', { test: id, answers })
+export const deleteTasteTest = (id: string) => rpc<void>('delete_taste_test', { test: id })
+export const myTasteTests = async () => (await rpc<TasteTest[]>('my_taste_tests')) ?? []
