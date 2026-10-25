@@ -1,7 +1,7 @@
-import { ExternalLink, Send, Star, Trash } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { friendsOnTitle, type FriendTake } from '../friends/api'
-import { takeOf } from '../friends/compare'
+import { ExternalLink, MessageCircle, Send, Star, Trash } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { COMMENT_MAX, friendsOnTitle, postComment, titleComments, type Comment, type FriendTake, type Person } from '../friends/api'
+import { takeOf, type Take } from '../friends/compare'
 import { shortName } from '../friends/feed'
 import { useSocial } from '../friends/social'
 import { genreLabel } from '../genres'
@@ -11,9 +11,13 @@ import { useStore } from '../store'
 import type { Entry, Media, SwipeAction } from '../types'
 import { Cover, metaLine } from './MediaCard'
 import { Sheet } from './Sheet'
-import { Avatar, TakeChip } from './social/parts'
+import { CommentItem, CommentThread } from './social/CommentThread'
+import { Avatar, errorText, TakeChip } from './social/parts'
 import { RecommendSheet } from './social/RecommendSheet'
 import { ACTION_ICONS, ACTION_LABEL, ACTION_STYLES } from './SwipeDeck'
+
+/** Comments shown before "Ver todos". */
+const FIRST_COMMENTS = 4
 
 const SOURCE_NAME = { anilist: 'AniList', tmdb: 'TMDB' } as const
 
@@ -54,11 +58,17 @@ interface Props {
 /** Everything about one title, and every way to classify it, outside the swipe decks. */
 export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
   const { entries, classify, rate, removeEntry, toggleFavorite } = useStore()
-  const { me, friends } = useSocial()
+  const { me, myId, friends } = useSocial()
   const entry = entries.get(media.id)
   const [more, setMore] = useState(false)
   const [takes, setTakes] = useState<FriendTake[] | null>(null)
   const [recommending, setRecommending] = useState(false)
+  const [comments, setComments] = useState<Comment[] | null>(null)
+  const [allComments, setAllComments] = useState(false)
+  const [text, setText] = useState('')
+  const [sending, setSending] = useState(false)
+  const [commentError, setCommentError] = useState<string | null>(null)
+  const [thread, setThread] = useState<{ owner: Person; take?: Take | null } | null>(null)
   const social = Boolean(me) && friends.length > 0
 
   useEffect(() => {
@@ -71,6 +81,61 @@ export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
       cancelled = true
     }
   }, [social, media.id])
+
+  const loadComments = useCallback(async () => {
+    try {
+      setComments(await titleComments(media.id))
+    } catch {
+      setComments((c) => c ?? [])
+    }
+  }, [media.id])
+
+  useEffect(() => {
+    if (social) void loadComments()
+  }, [social, loadComments])
+
+  const meAsPerson = (): Person | null =>
+    myId && me ? { userId: myId, username: me.username, displayName: me.displayName, avatar: me.avatar } : null
+
+  /** The person whose conversation a comment is in. */
+  const ownerOf = (c: Comment): Person => {
+    if (c.threadOwner === myId) return meAsPerson() ?? c
+    const friend = friends.find((f) => f.userId === c.threadOwner)
+    if (friend) return friend
+    return { userId: c.threadOwner, username: c.ownerUsername ?? '', displayName: c.ownerDisplayName ?? null, avatar: null }
+  }
+
+  /** Where a comment was made, when it is not the author talking about the title. */
+  const contextOf = (c: Comment): string | undefined => {
+    if (c.threadOwner === c.userId) return undefined
+    if (c.threadOwner === myId) return 'na sua conversa'
+    return `na conversa de ${shortName({ displayName: c.ownerDisplayName ?? null, username: c.ownerUsername ?? '' })}`
+  }
+
+  const commentsIn = (owner: string) => (comments ?? []).filter((c) => c.threadOwner === owner).length
+
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const body = text.trim()
+    if (!body || !myId) return
+    setSending(true)
+    setCommentError(null)
+    try {
+      await postComment(myId, media, body)
+      setText('')
+      setAllComments(false)
+      await loadComments()
+    } catch (err) {
+      setCommentError(errorText(err))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const closeThread = () => {
+    setThread(null)
+    void loadComments()
+  }
   const seen = entry?.status === 'seen'
   const actions = seen ? SEEN_ACTIONS : UNSEEN_ACTIONS
   const stored = entry ? (entry.rating ?? entry.suggestedRating) : null
@@ -183,13 +248,27 @@ export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
             <div className="skeleton-line short" aria-label="Carregando" />
           ) : takes.length > 0 ? (
             <ul className="friend-takes">
-              {takes.map((t) => (
-                <li key={t.userId}>
-                  <Avatar person={t} size="sm" />
-                  <span>{shortName(t)}</span>
-                  <TakeChip take={takeOf(t)} />
-                </li>
-              ))}
+              {takes.map((t) => {
+                const n = commentsIn(t.userId)
+                return (
+                  <li key={t.userId}>
+                    <button
+                      className="friend-take"
+                      aria-label={`Comentar a nota de ${shortName(t)}`}
+                      onClick={() => setThread({ owner: t, take: takeOf(t) })}
+                    >
+                      <Avatar person={t} size="sm" />
+                      <span>{shortName(t)}</span>
+                      <TakeChip take={takeOf(t)} />
+                      {n > 0 && (
+                        <span className="take-comments">
+                          <MessageCircle size={13} /> {n}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
           ) : (
             <p className="small muted">Nenhum amigo classificou este título ainda.</p>
@@ -199,6 +278,40 @@ export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
               <Send /> Recomendar para amigos
             </button>
           </div>
+
+          <h4 className="title-section">Comentários</h4>
+          {comments === null ? (
+            <div className="skeleton-line short" aria-label="Carregando" />
+          ) : comments.length === 0 ? (
+            <p className="small muted">Ninguém comentou ainda. O que você escrever aqui aparece para os seus amigos.</p>
+          ) : (
+            <ul className="comment-list">
+              {(allComments ? comments : comments.slice(0, FIRST_COMMENTS)).map((c) => (
+                <CommentItem key={c.id} comment={c} context={contextOf(c)} onOpen={() => setThread({ owner: ownerOf(c) })} />
+              ))}
+            </ul>
+          )}
+          {comments && comments.length > FIRST_COMMENTS && !allComments && (
+            <div className="row center">
+              <button className="link-btn" onClick={() => setAllComments(true)}>
+                Ver todos os {comments.length} comentários
+              </button>
+            </div>
+          )}
+          <form className="comment-form" onSubmit={send}>
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Comente sobre este título…"
+              maxLength={COMMENT_MAX}
+              rows={1}
+              aria-label="Seu comentário sobre o título"
+            />
+            <button type="submit" className="primary" disabled={sending || !text.trim()} aria-label="Enviar comentário">
+              <Send size={18} />
+            </button>
+          </form>
+          {commentError && <p className="message">{commentError}</p>}
         </>
       )}
 
@@ -211,6 +324,7 @@ export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
       )}
     </Sheet>
     {recommending && <RecommendSheet media={media} takes={takes ?? []} preselect={recommendTo} onClose={() => setRecommending(false)} />}
+    {thread && <CommentThread owner={thread.owner} media={media} take={thread.take} onClose={closeThread} />}
     </>
   )
 }

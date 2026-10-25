@@ -147,7 +147,7 @@ export function SocialTab({ link, onLinkHandled, onOpenSettings }: Props) {
           setNotice(null)
         }}
         items={[
-          { id: 'feed', label: 'Feed', badge: counts.likes },
+          { id: 'feed', label: 'Feed', badge: counts.activity },
           { id: 'friends', label: 'Amigos', badge: counts.requests },
           { id: 'recs', label: 'Indicações', badge: counts.recs },
           { id: 'tests', label: 'Testes', badge: counts.tests },

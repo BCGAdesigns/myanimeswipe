@@ -121,6 +121,24 @@ export interface SentRec extends RecBase {
   theirFavorite: boolean | null
 }
 
+/** A comment in a conversation: one person's thread about one title. */
+export interface Comment extends Person {
+  id: string
+  /** Whose conversation it is (the friend whose rating was commented, or the author's own). */
+  threadOwner: string
+  ownerUsername?: string
+  ownerDisplayName?: string | null
+  mediaId: string
+  body: string
+  createdAt: string
+  mine: boolean
+  media?: Media | null
+  /** Friends' title comments in the feed: how many comments followed. */
+  replies?: number
+}
+
+export const COMMENT_MAX = 500
+
 export interface TasteTest extends Person {
   id: string
   createdByMe: boolean
@@ -141,6 +159,8 @@ function friendlyError(message: string): string {
   if (/own invite/i.test(message)) return 'Esse é o seu próprio código.'
   if (/not friends/i.test(message)) return 'Vocês precisam ser amigos para isso.'
   if (/unknown or answered test/i.test(message)) return 'Esse teste já foi respondido.'
+  if (/empty comment/i.test(message)) return 'Escreva alguma coisa antes de enviar.'
+  if (/comments_body_check|body.*check/i.test(message)) return `Comentário muito longo (até ${COMMENT_MAX} caracteres).`
   if (/unknown user|invalid friend/i.test(message)) return 'Pessoa não encontrada.'
   if (/sign in first|JWT/i.test(message)) return 'Entre na sua conta primeiro.'
   if (/failed to fetch|network|load failed/i.test(message)) return 'Sem conexão. Tente de novo.'
@@ -293,3 +313,40 @@ export async function myTasteTests(): Promise<TasteTest[]> {
     theirAnswers: parseAnswers(t.theirAnswers),
   }))
 }
+
+/** The signed-in account's id (the session is local, no request). */
+export async function currentUserId(): Promise<string | null> {
+  const c = await getClient()
+  if (!c) return null
+  const { data } = await c.auth.getSession()
+  return data.session?.user.id ?? null
+}
+
+const withCommentMedia = (list: Comment[] | null) =>
+  (list ?? []).map((c) => ({ ...c, media: c.media ? cardMedia(c.media) : null }))
+
+export const postComment = (threadOwner: string, m: Media, body: string) =>
+  rpc<string>('post_comment', { thread_user: threadOwner, media_key: m.id, body_text: body, media_snapshot: mediaSnapshot(m) })
+export const deleteComment = (id: string) => rpc<void>('delete_comment', { comment_id: id })
+
+/** One conversation, oldest first; null when it is not open to the user. */
+export const threadComments = async (threadOwner: string, mediaId: string) =>
+  rpc<Comment[] | null>('thread_comments', { thread_user: threadOwner, media_key: mediaId })
+
+/** Everything the user and their friends said about a title, newest first. */
+export const titleComments = async (mediaId: string) => (await rpc<Comment[]>('title_comments', { media_key: mediaId, max_items: 50 })) ?? []
+
+/** Comments on the user's conversations and replies after theirs, newest first. */
+export const commentsReceived = async () => withCommentMedia(await rpc<Comment[]>('comments_received', { max_items: 30 }))
+
+/** Friends' comments about titles, for the feed. */
+export const friendsComments = async (beforeMs?: number) =>
+  withCommentMedia(await rpc<Comment[]>('friends_comments', { before_ms: beforeMs ?? null, max_items: FEED_PAGE }))
+
+/** Comment count per conversation, keyed `${owner}|${mediaId}`. */
+export async function commentCounts(threads: { owner: string; media: string }[]): Promise<Record<string, number>> {
+  if (!threads.length) return {}
+  return (await rpc<Record<string, number>>('comment_counts', { threads })) ?? {}
+}
+
+export const threadKey = (owner: string, mediaId: string) => `${owner}|${mediaId}`

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { arrangeEntries, normalizeText, searchLibrary } from '../library'
 import type { Entry, Media } from '../types'
-import { inviteCodeFromInput, suggestUsername, usernameFromInput } from './api'
+import { inviteCodeFromInput, suggestUsername, usernameFromInput, type Comment, type FeedItem } from './api'
 import { compareLists, listStats, parseSharedList, sortCommon, type SharedEntry } from './compare'
-import { activityText, compatLabel, sentStatus, takeLabel, timeAgo } from './feed'
+import { activityText, compatLabel, mergeFeed, sentStatus, takeLabel, timeAgo } from './feed'
 import { parseAnswers, pickTestItems, scoreTest, type Answers } from './taste'
 
 const media = (id: string, over: Partial<Media> = {}): Media => ({
@@ -355,5 +355,49 @@ describe('feed wording', () => {
     expect(takeLabel({ status: 'watching', rating: null, favorite: false })).toBe('Vendo')
     expect(compatLabel(90)).toBe('Gosto quase idêntico')
     expect(compatLabel(30)).toBe('Gostos opostos')
+  })
+})
+
+describe('feed timeline', () => {
+  const person = { userId: 'u1', username: 'ana', displayName: null, avatar: null }
+  const act = (mediaId: string, at: number): FeedItem => ({
+    ...person,
+    mediaId,
+    status: 'seen',
+    rating: 8,
+    suggestedRating: null,
+    favorite: false,
+    updatedAt: at,
+    media: null,
+    likes: 0,
+    liked: false,
+  })
+  const said = (id: string, at: number): Comment => ({
+    ...person,
+    id,
+    threadOwner: 'u1',
+    mediaId: 'anilist:1',
+    body: 'oi',
+    createdAt: new Date(at).toISOString(),
+    mine: false,
+  })
+  const ids = (rows: ReturnType<typeof mergeFeed>) => rows.map((r) => (r.kind === 'activity' ? r.item.mediaId : r.comment.id))
+
+  it('mixes activity and comments by time, newest first', () => {
+    const rows = mergeFeed([act('a', 900), act('b', 500), act('c', 100)], [said('x', 700), said('y', 50)], { items: false, said: false })
+    expect(ids(rows)).toEqual(['a', 'x', 'b', 'c', 'y'])
+  })
+
+  it('holds back what is older than the last item of a stream that has more pages', () => {
+    // More activity exists before 500: the comment at 50 waits for that page.
+    expect(ids(mergeFeed([act('a', 900), act('b', 500)], [said('x', 700), said('y', 50)], { items: true, said: false }))).toEqual(['a', 'x', 'b'])
+    // More comments exist before 700: activity older than that waits.
+    expect(ids(mergeFeed([act('a', 900), act('b', 500)], [said('x', 700)], { items: false, said: true }))).toEqual(['a', 'x'])
+    // Both have more: the later of the two cutoffs wins.
+    expect(ids(mergeFeed([act('a', 900), act('b', 500)], [said('x', 700)], { items: true, said: true }))).toEqual(['a', 'x'])
+  })
+
+  it('works with no comments at all', () => {
+    expect(ids(mergeFeed([act('a', 900), act('b', 500)], [], { items: true, said: false }))).toEqual(['a', 'b'])
   })
 })

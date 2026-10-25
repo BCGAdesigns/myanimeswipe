@@ -1,8 +1,29 @@
-// Wording for friends' activity, sent recommendations and how long ago things happened.
+// Wording for friends' activity, sent recommendations and how long ago things happened, and the
+// feed timeline.
 import { shownRating } from '../rating'
 import type { EntryStatus } from '../types'
-import type { SentRec } from './api'
+import type { Comment, FeedItem, SentRec } from './api'
 import type { Take } from './compare'
+
+export type FeedRow = { kind: 'activity'; at: number; item: FeedItem } | { kind: 'comment'; at: number; comment: Comment }
+
+const timeOf = (iso: string) => Date.parse(iso) || 0
+
+/**
+ * Friends' activity and what they said about titles in one timeline, newest first. While a stream
+ * has older pages, nothing older than its last item shows, so the next page never lands above what
+ * is already on screen.
+ */
+export function mergeFeed(items: FeedItem[], said: Comment[], more: { items: boolean; said: boolean }): FeedRow[] {
+  const oldestItem = items.length ? items[items.length - 1].updatedAt : Infinity
+  const oldestSaid = said.length ? timeOf(said[said.length - 1].createdAt) : Infinity
+  const cutoff = Math.max(more.items ? oldestItem : -Infinity, more.said ? oldestSaid : -Infinity)
+  const rows: FeedRow[] = [
+    ...items.map((item): FeedRow => ({ kind: 'activity', at: item.updatedAt, item })),
+    ...said.map((comment): FeedRow => ({ kind: 'comment', at: timeOf(comment.createdAt), comment })),
+  ]
+  return rows.filter((r) => r.at >= cutoff).sort((a, b) => b.at - a.at)
+}
 
 /** "@ana" or the name they chose. */
 export const personName = (p: { displayName: string | null; username: string }) => p.displayName ?? `@${p.username}`

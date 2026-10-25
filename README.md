@@ -30,7 +30,7 @@ O workflow `.github/workflows/ci.yml` roda testes e build em todo push. `dist/` 
 
 ## Supabase
 
-* Projeto `myanimeswipe` (região São Paulo). Esquema em `supabase/migrations/`: `entries`, `profiles`, a camada social (`usernames`, `friendships`, `reactions`, `recommendations`, `taste_tests` e as funções que conferem a amizade) e a função `tmdb_token`. A tabela `shares` e a função `shared_list` são da primeira versão do match com amigos e estão desativadas.
+* Projeto `myanimeswipe` (região São Paulo). Esquema em `supabase/migrations/`: `entries`, `profiles`, a camada social (`usernames`, `friendships`, `reactions`, `recommendations`, `taste_tests`, `comments` e as funções que conferem a amizade) e a função `tmdb_token`. A tabela `shares` e a função `shared_list` são da primeira versão do match com amigos e estão desativadas.
 * Variáveis de build (já cadastradas na Vercel; para rodar local, copie `.env.example` para `.env.local`): `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`. As duas são públicas por design; quem protege os dados são as regras RLS.
 * Funções em `supabase/functions/`:
   * `tmdb`: proxy só de leitura para a API do TMDB (sem verificação de JWT, para funcionar sem conta). Lê o token do secret `TMDB_READ_TOKEN` da função ou, se não houver, do Vault (`select vault.create_secret('<token de leitura do TMDB>', 'tmdb_read_token')`). Para trocar a chave, atualize o segredo no Vault; nada no app muda.
