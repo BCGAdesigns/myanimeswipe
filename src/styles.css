@@ -3430,43 +3430,24 @@ span.friend {
   font-size: 0.88rem;
 }
 
-.opinions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.test-rating .score-grid {
+  margin-top: 0;
 }
 
-.opinion {
-  padding: 9px 13px;
-  border-radius: 999px;
+.not-seen {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px;
+  border-radius: 12px;
   background: var(--surface);
   color: var(--muted);
-  font-size: 0.86rem;
+  font-size: 0.85rem;
 }
 
-.opinion.on {
+.not-seen.on {
   border-color: transparent;
-  color: #0b0c10;
-}
-
-.opinion.love.on {
-  background: #f472b6;
-}
-
-.opinion.like.on {
-  background: #4ade80;
-}
-
-.opinion.meh.on {
-  background: #facc15;
-}
-
-.opinion.dislike.on {
-  background: #fb923c;
-}
-
-.opinion.unseen.on {
   background: #9ca3af;
+  color: #0b0c10;
 }
 
 .test-item {

@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { answerTasteTest, createTasteTest, deleteTasteTest, type Person, type TasteTest } from '../../friends/api'
 import { personName, shortName, timeAgo } from '../../friends/feed'
 import { useSocial } from '../../friends/social'
-import { OPINION_LABEL, OPINIONS, pickTestItems, scoreTest, type Answers, type Closeness, type Opinion, type TestAnswer } from '../../friends/taste'
+import { pickTestItems, scoreTest, type Answers, type Closeness, type TestAnswer } from '../../friends/taste'
+import { STARS } from '../../rating'
 import { useStore } from '../../store'
 import { Cover, coverThumb, metaLine } from '../MediaCard'
 import { Sheet } from '../Sheet'
@@ -84,8 +85,9 @@ export function TestsView({ startWith, onStarted, onOpenFriend }: Props) {
           <FlaskConical /> Teste de gosto
         </h3>
         <p>
-          Vocês dois dizem o que acharam dos mesmos títulos, cada um no seu aparelho. Ninguém vê a resposta do outro antes
-          de os dois terminarem; no fim aparece o quanto os gostos combinam, título por título.
+          Para cada título, você dá a sua nota de 1 a 8 e chuta a nota que a outra pessoa daria. Ela faz o mesmo no próprio
+          aparelho, e ninguém vê as respostas do outro antes de os dois terminarem. No fim aparece o quanto os gostos
+          combinam e quem conhece melhor o outro.
         </p>
         <div className="row">
           <button className="primary" disabled={busy || friends.length === 0} onClick={() => setPicking(true)}>
@@ -179,40 +181,61 @@ function TestGroup({
   )
 }
 
-function OpinionPicker({ value, onChange, label }: { value: Opinion | undefined; onChange: (o: Opinion) => void; label: string }) {
+function RatingPicker({
+  value,
+  onChange,
+  label,
+  noneLabel,
+}: {
+  value: number | null | undefined
+  onChange: (v: number | null) => void
+  label: string
+  noneLabel: string
+}) {
   return (
-    <div className="opinions" role="radiogroup" aria-label={label}>
-      {OPINIONS.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          role="radio"
-          aria-checked={value === o.id}
-          className={`opinion ${o.id}${value === o.id ? ' on' : ''}`}
-          onClick={() => onChange(o.id)}
-        >
-          {o.label}
-        </button>
-      ))}
+    <div className="test-rating" role="radiogroup" aria-label={label}>
+      <div className="score-grid">
+        {STARS.map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={value === n}
+            aria-label={`Nota ${n}`}
+            className={value === n ? 'score active' : 'score'}
+            style={{ ['--s' as string]: n }}
+            onClick={() => onChange(n)}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      <button type="button" role="radio" aria-checked={value === null} className={`not-seen${value === null ? ' on' : ''}`} onClick={() => onChange(null)}>
+        {noneLabel}
+      </button>
     </div>
   )
 }
 
+type Draft = { rating?: number | null; guess?: number | null }
+const done = (d: Draft | undefined): d is TestAnswer => d !== undefined && d.rating !== undefined && d.guess !== undefined
+
 function TestPlay({ test, onClose, onSent }: { test: TasteTest; onClose: () => void; onSent: () => Promise<void> }) {
   const [index, setIndex] = useState(0)
-  const [answers, setAnswers] = useState<Answers>({})
+  const [answers, setAnswers] = useState<Record<string, Draft>>({})
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const name = shortName(test)
   const item = test.items[index]
-  const answer: TestAnswer | undefined = answers[item.mediaId]
-  const allDone = test.items.every((i) => answers[i.mediaId])
+  const draft = answers[item.mediaId] ?? {}
+  const allDone = test.items.every((i) => done(answers[i.mediaId]))
   const last = index === test.items.length - 1
 
-  const choose = (opinion: Opinion) => {
-    setAnswers((a) => ({ ...a, [item.mediaId]: { opinion } }))
-    // Answered: move on by itself, like flipping a card.
-    if (!last) window.setTimeout(() => setIndex((i) => Math.min(i + 1, test.items.length - 1)), 280)
+  const choose = (field: keyof Draft, value: number | null) => {
+    const next = { ...draft, [field]: value }
+    setAnswers((a) => ({ ...a, [item.mediaId]: next }))
+    // Both answered: move on by itself, like flipping a card.
+    if (done(next) && !last) window.setTimeout(() => setIndex((i) => Math.min(i + 1, test.items.length - 1)), 320)
   }
 
   const send = async () => {
@@ -232,7 +255,7 @@ function TestPlay({ test, onClose, onSent }: { test: TasteTest; onClose: () => v
     <Sheet title={`Teste com ${personName(test)}`} onClose={onClose} className="tall">
       <div className="progress" aria-label={`Pergunta ${index + 1} de ${test.items.length}`}>
         {test.items.map((i, n) => (
-          <span key={i.mediaId} className={n <= index || answers[i.mediaId] ? 'on' : ''} />
+          <span key={i.mediaId} className={n <= index || done(answers[i.mediaId]) ? 'on' : ''} />
         ))}
       </div>
       <div className="test-item">
@@ -245,8 +268,10 @@ function TestPlay({ test, onClose, onSent }: { test: TasteTest; onClose: () => v
           </p>
         </div>
       </div>
-      <h4 className="title-section">O que você achou?</h4>
-      <OpinionPicker label="Sua opinião" value={answer?.opinion} onChange={choose} />
+      <h4 className="title-section">Sua nota</h4>
+      <RatingPicker label="Sua nota" noneLabel="Não vi" value={draft.rating} onChange={(v) => choose('rating', v)} />
+      <h4 className="title-section">Que nota você acha que {name} daria?</h4>
+      <RatingPicker label={`Nota que ${name} daria`} noneLabel="Acho que não viu" value={draft.guess} onChange={(v) => choose('guess', v)} />
       <div className="row test-nav">
         <button disabled={index === 0} onClick={() => setIndex(index - 1)}>
           <ChevronLeft /> Voltar
@@ -256,7 +281,7 @@ function TestPlay({ test, onClose, onSent }: { test: TasteTest; onClose: () => v
             {sending ? 'Enviando…' : 'Enviar respostas'}
           </button>
         ) : (
-          <button className="primary" disabled={!answer} onClick={() => setIndex(index + 1)}>
+          <button className="primary" disabled={!done(draft)} onClick={() => setIndex(index + 1)}>
             Próximo
           </button>
         )}
@@ -272,11 +297,13 @@ function TestPlay({ test, onClose, onSent }: { test: TasteTest; onClose: () => v
 }
 
 function Mark({ closeness }: { closeness: Closeness | null }) {
-  if (closeness === 'same') return <Check className="mark right" aria-label="mesma opinião" />
-  if (closeness === 'close') return <Minus className="mark close" aria-label="opiniões próximas" />
-  if (closeness === 'apart') return <X className="mark wrong" aria-label="opiniões opostas" />
+  if (closeness === 'same') return <Check className="mark right" aria-label="igual" />
+  if (closeness === 'close') return <Minus className="mark close" aria-label="perto" />
+  if (closeness === 'apart') return <X className="mark wrong" aria-label="longe" />
   return null
 }
+
+const shown = (v: number | null | undefined, none: string) => (v === undefined ? '–' : v === null ? none : String(v))
 
 function TestResult({ test, onClose }: { test: TasteTest; onClose: () => void }) {
   const score = useMemo(() => scoreTest(test.items, test.myAnswers ?? {}, test.theirAnswers ?? {}), [test])
@@ -290,10 +317,25 @@ function TestResult({ test, onClose }: { test: TasteTest; onClose: () => void })
           <p>
             {score.taste === null
               ? 'Nenhum título visto pelos dois neste teste.'
-              : `Mesma resposta em ${score.same} de ${score.bothSeen} ${score.bothSeen === 1 ? 'título que os dois viram' : 'títulos que os dois viram'}.`}
+              : `Mesma nota em ${score.sameRating} de ${score.bothRated} ${score.bothRated === 1 ? 'título que os dois viram' : 'títulos que os dois viram'}.`}
           </p>
         </div>
       </div>
+      <div className="stats two">
+        <div className="stat">
+          <strong>
+            {score.myRight}/{score.total}
+          </strong>
+          <span>seus palpites certos sobre {name}</span>
+        </div>
+        <div className="stat">
+          <strong>
+            {score.theirRight}/{score.total}
+          </strong>
+          <span>palpites certos de {name} sobre você</span>
+        </div>
+      </div>
+      <p className="small muted">{verdict(score.myRight, score.theirRight, name)}</p>
       <ul className="test-answers">
         {score.items.map((r) => (
           <li key={r.item.mediaId}>
@@ -301,9 +343,14 @@ function TestResult({ test, onClose }: { test: TasteTest; onClose: () => void })
             <div>
               <strong>{r.item.media.title}</strong>
               <p className="guesses">
-                <span>Você: {r.mine ? OPINION_LABEL[r.mine] : '–'}</span>
                 <span>
-                  {name}: {r.theirs ? OPINION_LABEL[r.theirs] : '–'} <Mark closeness={r.closeness} />
+                  Você: {shown(r.mine?.rating, 'não vi')} · {name}: {shown(r.theirs?.rating, 'não viu')} <Mark closeness={r.taste} />
+                </span>
+                <span>
+                  Seu palpite: {shown(r.mine?.guess, 'não viu')} <Mark closeness={r.myGuess} />
+                </span>
+                <span>
+                  Palpite de {name}: {shown(r.theirs?.guess, 'não viu')} <Mark closeness={r.theirGuess} />
                 </span>
               </p>
             </div>
@@ -312,4 +359,9 @@ function TestResult({ test, onClose }: { test: TasteTest; onClose: () => void })
       </ul>
     </Sheet>
   )
+}
+
+function verdict(mine: number, theirs: number, name: string): string {
+  if (mine === theirs) return 'Empate: vocês se conhecem na mesma medida.'
+  return mine > theirs ? `Você conhece melhor o gosto de ${name}.` : `${name} conhece melhor o seu gosto.`
 }

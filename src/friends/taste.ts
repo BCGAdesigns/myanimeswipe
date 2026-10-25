@@ -1,22 +1,9 @@
-// Taste test: two friends say what they thought of the same titles, each on their own device.
-// Nobody sees the other's answers until both finish; the result shows how close their tastes are.
+// Taste test: two friends rate the same titles from 1 to 8, each on their own device, and guess
+// the rating the other one gives. Nobody sees the other's answers until both finish; the result
+// shows how close their tastes are and who knows the other better.
 import { signalWeight } from '../recs/engine'
 import type { Entry, Media } from '../types'
 import { asEntry, mediaSnapshot, type SharedEntry } from './compare'
-
-export type Opinion = 'love' | 'like' | 'meh' | 'dislike' | 'unseen'
-
-export const OPINIONS: { id: Opinion; label: string }[] = [
-  { id: 'love', label: 'Amei' },
-  { id: 'like', label: 'Gostei' },
-  { id: 'meh', label: 'Mais ou menos' },
-  { id: 'dislike', label: 'Não gostei' },
-  { id: 'unseen', label: 'Não vi' },
-]
-
-export const OPINION_LABEL = Object.fromEntries(OPINIONS.map((o) => [o.id, o.label])) as Record<Opinion, string>
-
-const LEVEL: Record<Exclude<Opinion, 'unseen'>, number> = { love: 3, like: 2, meh: 1, dislike: 0 }
 
 export interface TestItem {
   mediaId: string
@@ -24,22 +11,40 @@ export interface TestItem {
 }
 
 export interface TestAnswer {
-  opinion: Opinion
+  /** The person's own rating, 1 to 8; null when they have not seen it. */
+  rating: number | null
+  /** The rating they think the other person gives; null for "não viu". */
+  guess: number | null
 }
 
 export type Answers = Record<string, TestAnswer>
 
 export const TEST_SIZE = 8
 
-const isOpinion = (v: unknown): v is Opinion => OPINIONS.some((o) => o.id === v)
+/** Ratings worth the same distance apart as the friend compatibility: 3 or more is no agreement. */
+const GAP_SCALE = 3
 
-/** Keeps only well formed answers (tests from the first version also carried a guess, now ignored). */
+/** The first tests used words; they map onto the 1 to 8 scale. */
+const OLD_OPINION: Record<string, number | null> = { love: 8, like: 6, meh: 4, dislike: 2, unseen: null }
+
+const asRating = (v: unknown): number | null | undefined => {
+  if (v === null) return null
+  if (typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 8) return v
+  if (typeof v === 'string' && v in OLD_OPINION) return OLD_OPINION[v]
+  return undefined
+}
+
+/** Keeps only well formed answers; answers from the first versions are converted. */
 export function parseAnswers(raw: unknown): Answers | null {
   if (!raw || typeof raw !== 'object') return null
   const out: Answers = {}
   for (const [id, a] of Object.entries(raw as Record<string, unknown>)) {
-    const answer = a as { opinion?: unknown } | null
-    if (answer && isOpinion(answer.opinion)) out[id] = { opinion: answer.opinion }
+    const answer = a as { rating?: unknown; guess?: unknown; opinion?: unknown } | null
+    if (!answer) continue
+    const rating = asRating('rating' in answer ? answer.rating : answer.opinion)
+    const guess = asRating(answer.guess)
+    if (rating === undefined) continue
+    out[id] = { rating, guess: guess === undefined ? null : guess }
   }
   return out
 }
@@ -127,36 +132,69 @@ export function pickTestItems(
 
 export type Closeness = 'same' | 'close' | 'apart'
 
+/** Same rating, one apart, or further (or seen against not seen). */
+export function closeness(a: number | null, b: number | null): Closeness {
+  if (a === null || b === null) return a === b ? 'same' : 'apart'
+  const gap = Math.abs(a - b)
+  return gap === 0 ? 'same' : gap === 1 ? 'close' : 'apart'
+}
+
 export interface ItemResult {
   item: TestItem
-  mine: Opinion | null
-  theirs: Opinion | null
-  /** How close the two opinions are; null unless both saw it. */
-  closeness: Closeness | null
+  mine: TestAnswer | null
+  theirs: TestAnswer | null
+  /** How close the two ratings are; null unless both rated it. */
+  taste: Closeness | null
+  /** The user's guess against the friend's rating, and the friend's guess against the user's. */
+  myGuess: Closeness | null
+  theirGuess: Closeness | null
 }
 
 export interface TestScore {
-  /** 0 to 100 over the titles both have seen; null when there is none. */
+  /** 0 to 100 over the titles both rated; null when there is none. */
   taste: number | null
-  /** Titles both have seen, and how many of those got the same answer. */
-  bothSeen: number
-  same: number
+  bothRated: number
+  sameRating: number
+  /** Exact guesses ("não viu" included), out of `total`. */
+  myRight: number
+  theirRight: number
+  total: number
   items: ItemResult[]
 }
 
 export function scoreTest(items: TestItem[], mine: Answers, theirs: Answers): TestScore {
   let tasteSum = 0
-  let bothSeen = 0
-  let same = 0
+  let bothRated = 0
+  let sameRating = 0
+  let myRight = 0
+  let theirRight = 0
+  let total = 0
   const results = items.map((item): ItemResult => {
-    const a = mine[item.mediaId]?.opinion ?? null
-    const b = theirs[item.mediaId]?.opinion ?? null
-    if (!a || !b || a === 'unseen' || b === 'unseen') return { item, mine: a, theirs: b, closeness: null }
-    const gap = Math.abs(LEVEL[a] - LEVEL[b])
-    bothSeen++
-    tasteSum += 1 - gap / 3
-    if (gap === 0) same++
-    return { item, mine: a, theirs: b, closeness: gap === 0 ? 'same' : gap === 1 ? 'close' : 'apart' }
+    const a = mine[item.mediaId] ?? null
+    const b = theirs[item.mediaId] ?? null
+    if (!a || !b) return { item, mine: a, theirs: b, taste: null, myGuess: null, theirGuess: null }
+    total++
+    let taste: Closeness | null = null
+    if (a.rating !== null && b.rating !== null) {
+      const gap = Math.abs(a.rating - b.rating)
+      bothRated++
+      tasteSum += Math.max(0, 1 - gap / GAP_SCALE)
+      if (gap === 0) sameRating++
+      taste = closeness(a.rating, b.rating)
+    }
+    const myGuess = closeness(a.guess, b.rating)
+    const theirGuess = closeness(b.guess, a.rating)
+    if (myGuess === 'same') myRight++
+    if (theirGuess === 'same') theirRight++
+    return { item, mine: a, theirs: b, taste, myGuess, theirGuess }
   })
-  return { taste: bothSeen ? Math.round((100 * tasteSum) / bothSeen) : null, bothSeen, same, items: results }
+  return {
+    taste: bothRated ? Math.round((100 * tasteSum) / bothRated) : null,
+    bothRated,
+    sameRating,
+    myRight,
+    theirRight,
+    total,
+    items: results,
+  }
 }

@@ -275,22 +275,44 @@ describe('taste test', () => {
     expect(items.some((i) => i.mediaId.startsWith('f'))).toBe(true)
   })
 
-  it('compares the two opinions, title by title', () => {
+  it('compares the ratings and scores the guesses, title by title', () => {
     const items = ['a', 'b', 'c', 'd'].map((id) => ({ mediaId: id, media: media(id) }))
-    const me: Answers = { a: { opinion: 'love' }, b: { opinion: 'dislike' }, c: { opinion: 'unseen' }, d: { opinion: 'like' } }
-    const them: Answers = { a: { opinion: 'love' }, b: { opinion: 'love' }, c: { opinion: 'like' }, d: { opinion: 'love' } }
+    const me: Answers = {
+      a: { rating: 8, guess: 8 },
+      b: { rating: 2, guess: 6 },
+      c: { rating: null, guess: null },
+      d: { rating: 6, guess: 4 },
+    }
+    const them: Answers = {
+      a: { rating: 8, guess: 7 },
+      b: { rating: 7, guess: 2 },
+      c: { rating: 5, guess: null },
+      d: { rating: 7, guess: 6 },
+    }
     const s = scoreTest(items, me, them)
-    // a identical (1), b opposite (0), d one step apart (2/3); c does not count (unseen on one side).
+    // a same (1), b five apart (0), d one apart (2/3); c does not count, one side has not seen it.
     expect(s.taste).toBe(56)
-    expect(s.bothSeen).toBe(3)
-    expect(s.same).toBe(1)
-    expect(s.items.map((r) => r.closeness)).toEqual(['same', 'apart', null, 'close'])
+    expect(s.bothRated).toBe(3)
+    expect(s.sameRating).toBe(1)
+    expect(s.items.map((r) => r.taste)).toEqual(['same', 'apart', null, 'close'])
+    // My guesses: a right, b close (6 against 7), c wrong (not seen against 5), d far.
+    expect(s.items.map((r) => r.myGuess)).toEqual(['same', 'close', 'apart', 'apart'])
+    expect(s.myRight).toBe(1)
+    // Theirs: a close, b right, c right (both "não viu"), d right.
+    expect(s.theirRight).toBe(3)
+    expect(s.total).toBe(4)
   })
 
-  it('drops malformed answers and ignores the guesses of the first version', () => {
-    expect(parseAnswers({ a: { opinion: 'love', guess: 'meh' }, b: { opinion: 'nope' }, c: null })).toEqual({
-      a: { opinion: 'love' },
-    })
+  it('reads the answers of the first versions on the new scale', () => {
+    expect(
+      parseAnswers({
+        a: { opinion: 'love', guess: 'meh' },
+        b: { opinion: 'unseen' },
+        c: { rating: 9, guess: 1 },
+        d: { rating: 3, guess: null },
+        e: null,
+      }),
+    ).toEqual({ a: { rating: 8, guess: 4 }, b: { rating: null, guess: null }, d: { rating: 3, guess: null } })
     expect(parseAnswers(null)).toBeNull()
   })
 })
