@@ -275,33 +275,21 @@ describe('taste test', () => {
     expect(items.some((i) => i.mediaId.startsWith('f'))).toBe(true)
   })
 
-  it('scores taste and guesses', () => {
-    const items = ['a', 'b', 'c'].map((id) => ({ mediaId: id, media: media(id) }))
-    const me: Answers = {
-      a: { opinion: 'love', guess: 'love' },
-      b: { opinion: 'dislike', guess: 'like' },
-      c: { opinion: 'unseen', guess: 'meh' },
-    }
-    const them: Answers = {
-      a: { opinion: 'love', guess: 'like' },
-      b: { opinion: 'love', guess: 'dislike' },
-      c: { opinion: 'like', guess: 'unseen' },
-    }
+  it('compares the two opinions, title by title', () => {
+    const items = ['a', 'b', 'c', 'd'].map((id) => ({ mediaId: id, media: media(id) }))
+    const me: Answers = { a: { opinion: 'love' }, b: { opinion: 'dislike' }, c: { opinion: 'unseen' }, d: { opinion: 'like' } }
+    const them: Answers = { a: { opinion: 'love' }, b: { opinion: 'love' }, c: { opinion: 'like' }, d: { opinion: 'love' } }
     const s = scoreTest(items, me, them)
-    // a identical, b opposite; c does not count (unseen on one side).
-    expect(s.taste).toBe(50)
-    expect(s.tasteBasis).toBe(2)
-    // I got a right; b and c were close (one step away), which does not count as right.
-    expect(s.myGuesses).toBe(1)
-    expect(s.items[1].iGuessed).toBe('close')
-    // They got b and c right, a was close.
-    expect(s.theirGuesses).toBe(2)
-    expect(s.items[0].theyGuessed).toBe('close')
+    // a identical (1), b opposite (0), d one step apart (2/3); c does not count (unseen on one side).
+    expect(s.taste).toBe(56)
+    expect(s.bothSeen).toBe(3)
+    expect(s.same).toBe(1)
+    expect(s.items.map((r) => r.closeness)).toEqual(['same', 'apart', null, 'close'])
   })
 
-  it('drops malformed answers', () => {
-    expect(parseAnswers({ a: { opinion: 'love', guess: 'meh' }, b: { opinion: 'nope', guess: 'meh' }, c: null })).toEqual({
-      a: { opinion: 'love', guess: 'meh' },
+  it('drops malformed answers and ignores the guesses of the first version', () => {
+    expect(parseAnswers({ a: { opinion: 'love', guess: 'meh' }, b: { opinion: 'nope' }, c: null })).toEqual({
+      a: { opinion: 'love' },
     })
     expect(parseAnswers(null)).toBeNull()
   })

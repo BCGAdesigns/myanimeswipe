@@ -105,7 +105,8 @@ export function deckPhase(entries: Map<string, Entry>, media: Map<string, Media>
 /**
  * The Discover deck: one card of each chosen kind in turn (anime, movie, series, cartoon),
  * starting after the kind swiped last so every kind gets its turn, then the skipped cards,
- * oldest skip first.
+ * oldest skip first. Skipped cards of a source come back only once it has nothing new left to
+ * load (`exhausted`), so a new device fetches more pages instead of repeating them.
  */
 export function buildMixedDeck(
   kinds: MediaKind[],
@@ -113,6 +114,7 @@ export function buildMixedDeck(
   hash: string,
   entries: Map<string, Entry>,
   phase: DeckPhase = { lastKind: null, lastCartoon: null },
+  exhausted: (source: SourceKey) => boolean = () => true,
 ): string[] {
   const sources = sourcesFor(kinds)
   const fresh = freshBySource(catalogs, sources, hash, entries)
@@ -138,6 +140,7 @@ export function buildMixedDeck(
   }
   const skipped: Entry[] = []
   for (const s of sources) {
+    if (!exhausted(s)) continue
     for (const id of catalogFor(catalogs, s, hash).ids) {
       const e = entries.get(id)
       if (e?.status === 'skip') skipped.push(e)

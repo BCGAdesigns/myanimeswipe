@@ -13,10 +13,30 @@ export interface CloudState {
   /** Local changes not yet in the cloud. */
   pending: number
   message: string | null
+  /** This device has the account's library (it synced it before), or nobody is signed in. */
+  libraryReady: boolean
 }
 
 /** Debounce for syncing after local changes, so a swipe streak becomes one push. */
 const AFTER_CHANGE_MS = 3000
+/** Account whose library this device already pulled; read synchronously so decks don't flicker. */
+const SYNCED_KEY = 'watchmatch:librarySyncedFor'
+
+function deviceSyncedFor(userId: string): boolean {
+  try {
+    return localStorage.getItem(SYNCED_KEY) === userId
+  } catch {
+    return false
+  }
+}
+
+function markDeviceSynced(userId: string) {
+  try {
+    localStorage.setItem(SYNCED_KEY, userId)
+  } catch {
+    // The IndexedDB sync meta still answers, a moment later.
+  }
+}
 
 function friendlyError(e: unknown): string {
   const text = e instanceof Error ? e.message : String(e)
@@ -59,6 +79,7 @@ export function useCloudSync(options: Options) {
     lastSyncAt: null,
     pending: 0,
     message: linkErrorFromUrl(),
+    libraryReady: true,
   }))
   const userIdRef = useRef<string | null>(null)
   const running = useRef(false)
@@ -81,14 +102,16 @@ export function useCloudSync(options: Options) {
       const client = await clientPromise
       const { applied } = await runSync(idbStore, supabaseRemote(client), userId)
       if (applied.length) optionsRef.current.onApplied(applied)
+      markDeviceSynced(userId)
       await syncPrefs(supabaseProfiles(client), userId, optionsRef.current.getPrefs(), (p) =>
         optionsRef.current.onRemotePrefs(p),
       )
       const pending = await countOutbox()
-      setState((s) => ({ ...s, status: 'idle', lastSyncAt: Date.now(), pending, message: null }))
+      setState((s) => ({ ...s, status: 'idle', lastSyncAt: Date.now(), pending, message: null, libraryReady: true }))
     } catch (e) {
       const pending = await countOutbox().catch(() => 0)
-      setState((s) => ({ ...s, status: 'error', pending, message: friendlyError(e) }))
+      // Offline on a new device: let the decks work anyway; the error shows on the cloud icon.
+      setState((s) => ({ ...s, status: 'error', pending, message: friendlyError(e), libraryReady: true }))
     } finally {
       running.current = false
       if (again.current) {
@@ -128,7 +151,19 @@ export function useCloudSync(options: Options) {
             ...s,
             email: user?.email ?? null,
             status: !user ? 'signed-out' : s.status === 'loading' || s.status === 'signed-out' ? 'idle' : s.status,
+            libraryReady: !user || deviceSyncedFor(user.id) || (s.libraryReady && s.email === (user.email ?? null)),
           }))
+          // Devices that synced before this flag existed: the sync meta knows.
+          if (user && !deviceSyncedFor(user.id)) {
+            idbStore
+              .getSyncMeta()
+              .then((meta) => {
+                if (meta?.userId !== user.id || meta.cursor === null) return
+                markDeviceSynced(user.id)
+                setState((s) => ({ ...s, libraryReady: true }))
+              })
+              .catch(() => {})
+          }
           // Supabase warns against calling its client from inside this callback; defer.
           if (user && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN')) window.setTimeout(() => void sync(), 0)
         })

@@ -48,8 +48,13 @@ export interface LocalStore {
   enqueueAll(): Promise<void>
   getEntry(mediaId: string): Promise<Entry | undefined>
   getMedia(mediaId: string): Promise<Media | undefined>
-  /** Applies changes newer than local state and returns the ones applied. */
-  applyRemote(changes: RemoteChange[]): Promise<RemoteChange[]>
+  /**
+   * Applies changes newer than local state and returns the ones applied. With `force`, applies
+   * them whatever the revs say and drops pending local changes to the same records.
+   */
+  applyRemote(changes: RemoteChange[], options?: { force?: boolean }): Promise<RemoteChange[]>
+  /** Gives local records a new rev and queues them, so the server takes them over older copies. */
+  restamp(mediaIds: string[], rev: number): Promise<void>
   getSyncMeta(): Promise<SyncMeta | undefined>
   saveSyncMeta(meta: SyncMeta): Promise<void>
 }
@@ -67,6 +72,32 @@ const PULL_OVERLAP_MS = 5000
 
 export function revOf(entry: Entry): number {
   return entry.rev ?? entry.updatedAt
+}
+
+/** How much a record says: a rating beats a plain "já vi", which beats a list, which beats a skip. */
+export function infoRank(entry: Entry | null | undefined): number {
+  if (!entry) return 0
+  const favorite = entry.favorite ? 0.5 : 0
+  switch (entry.status) {
+    case 'seen':
+      return (entry.rating !== null ? 5 : 4) + favorite
+    case 'watching':
+    case 'paused':
+    case 'dropped':
+      return 3 + favorite
+    case 'want':
+    case 'reject':
+      return 2 + favorite
+    case 'skip':
+      return 1 + favorite
+  }
+}
+
+/** First sync of an account on a device: does the record made here before signing in win? */
+export function keepsLocal(local: Entry, remote: RemoteChange): boolean {
+  const l = infoRank(local)
+  const r = infoRank(remote.entry)
+  return l > r || (l === r && revOf(local) > remote.rev)
 }
 
 export function toRow(userId: string, item: OutboxItem, entry: Entry | undefined, media: Media | undefined): RemoteRow {
@@ -138,12 +169,38 @@ export interface SyncResult {
   applied: RemoteChange[]
 }
 
-/** Pushes local changes, then pulls everything newer than the cursor. */
-export async function runSync(store: LocalStore, remote: RemoteApi, userId: string): Promise<SyncResult> {
+/**
+ * Pushes local changes, then pulls everything newer than the cursor. The first sync of an account
+ * on a device pulls first: records made here before signing in (often repeats of titles the
+ * account already has, because the device did not know them) replace the account's copy only
+ * when they say more; a skip never erases a rating.
+ */
+export async function runSync(store: LocalStore, remote: RemoteApi, userId: string, now = Date.now()): Promise<SyncResult> {
   let meta = await store.getSyncMeta()
+  const applied: RemoteChange[] = []
+  let cursor: string | null = meta && meta.userId === userId ? meta.cursor : null
+
   if (!meta || meta.userId !== userId) {
     await store.enqueueAll()
     meta = { userId, cursor: null }
+    const remoteWins: RemoteChange[] = []
+    const localWins: string[] = []
+    let since: string | null = null
+    for (;;) {
+      const rows = await remote.pull(userId, since, PULL_PAGE)
+      if (rows.length === 0) break
+      for (const change of rows.map(toChange)) {
+        const local = await store.getEntry(change.mediaId)
+        if (local && keepsLocal(local, change)) localWins.push(change.mediaId)
+        else remoteWins.push(change)
+      }
+      const last = rows[rows.length - 1].synced_at ?? null
+      if (last && (!cursor || Date.parse(last) >= Date.parse(cursor))) cursor = last
+      if (rows.length < PULL_PAGE || !last) break
+      since = last
+    }
+    applied.push(...(await store.applyRemote(remoteWins, { force: true })))
+    if (localWins.length) await store.restamp(localWins, now)
   }
 
   const outbox = await store.getOutbox()
@@ -159,8 +216,6 @@ export async function runSync(store: LocalStore, remote: RemoteApi, userId: stri
     await store.clearOutbox(batch)
   }
 
-  const applied: RemoteChange[] = []
-  let cursor = meta.cursor
   let since = cursor ? new Date(Date.parse(cursor) - PULL_OVERLAP_MS).toISOString() : null
   for (;;) {
     const rows = await remote.pull(userId, since, PULL_PAGE)

@@ -9,7 +9,9 @@ import { SwipeDeck } from './SwipeDeck'
 const REFILL_AT = 5
 
 export function RecsTab({ onOpenPrefs }: { onOpenPrefs: () => void }) {
-  const { ready, prefs, entries, media, recs, recsStatus, recsError, refreshRecs } = useStore()
+  const { ready, prefs, entries, media, recs, recsStatus, recsError, refreshRecs, cloud } = useStore()
+  // A device that never synced this account would recommend from an incomplete library.
+  const waiting = Boolean(cloud.email) && !cloud.libraryReady
 
   const seeds = useMemo(() => (prefs ? pickSeeds(entries, media, prefs) : null), [entries, media, prefs])
   const positive = seeds?.all.length ?? 0
@@ -21,10 +23,24 @@ export function RecsTab({ onOpenPrefs }: { onOpenPrefs: () => void }) {
   const fresh = useMemo(() => (recs ? countFresh(recs.ids, entries) : 0), [recs, entries])
 
   useEffect(() => {
-    if (!ready || !prefs || positive < MIN_POSITIVE_SIGNALS || recsStatus !== 'idle') return
+    if (!ready || !prefs || waiting || positive < MIN_POSITIVE_SIGNALS || recsStatus !== 'idle') return
     const refill = fresh < REFILL_AT && recs?.seedKey !== seedKey
     if (isStale(recs, prefs, Date.now()) || refill) void refreshRecs()
-  }, [ready, prefs, positive, recsStatus, recs, fresh, seedKey, refreshRecs])
+  }, [ready, prefs, waiting, positive, recsStatus, recs, fresh, seedKey, refreshRecs])
+
+  if (waiting) {
+    return (
+      <div className="deck-wrap">
+        <div className="deck">
+          <div className="deck-empty">
+            <div className="skeleton-card waiting" aria-label="Trazendo sua biblioteca">
+              <span>Trazendo sua biblioteca da nuvem…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (ready && positive < MIN_POSITIVE_SIGNALS) {
     return (

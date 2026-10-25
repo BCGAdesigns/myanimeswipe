@@ -51,16 +51,25 @@ class Device implements LocalStore {
   async getMedia(id: string) {
     return this.media.get(id)
   }
-  async applyRemote(changes: RemoteChange[]) {
+  async applyRemote(changes: RemoteChange[], options?: { force?: boolean }) {
     const applied = []
     for (const c of changes) {
-      if (!isNewer(c.rev, this.entries.get(c.mediaId), this.outbox.get(c.mediaId))) continue
+      if (options?.force) this.outbox.delete(c.mediaId)
+      else if (!isNewer(c.rev, this.entries.get(c.mediaId), this.outbox.get(c.mediaId))) continue
       if (c.entry) this.entries.set(c.mediaId, c.entry)
       else this.entries.delete(c.mediaId)
       if (c.media && !this.media.has(c.media.id)) this.media.set(c.media.id, c.media)
       applied.push(c)
     }
     return applied
+  }
+  async restamp(mediaIds: string[], rev: number) {
+    for (const id of mediaIds) {
+      const e = this.entries.get(id)
+      if (!e) continue
+      this.entries.set(id, { ...e, rev })
+      this.outbox.set(id, rev)
+    }
   }
   async getSyncMeta() {
     return this.meta
@@ -233,6 +242,49 @@ describe('runSync', () => {
     const { applied } = await runSync(pc, server, USER)
     expect(applied).toHaveLength(1200)
     expect(pc.entries.size).toBe(1200)
+  })
+
+  it("on a device's first sync, never lets a swipe made before signing in erase the account's rating", async () => {
+    const server = new Server()
+    const phone = new Device()
+    phone.write({ ...entry('anilist:1', 'seen', 100), rating: 9 })
+    phone.write(entry('anilist:2', 'skip', 100))
+    phone.write(entry('anilist:3', 'want', 100))
+    await runSync(phone, server, USER)
+
+    // A new tablet, used before signing in: it offered titles the account already had.
+    const tablet = new Device()
+    tablet.write(entry('anilist:1', 'skip', 500))
+    tablet.write({ ...entry('anilist:2', 'seen', 500), rating: 7 })
+    tablet.write(entry('anilist:4', 'want', 500))
+    await runSync(tablet, server, USER, 600)
+
+    // The account's rating survives the later skip; the new rating replaces the old skip.
+    expect(tablet.entries.get('anilist:1')).toMatchObject({ status: 'seen', rating: 9 })
+    expect(tablet.entries.get('anilist:2')).toMatchObject({ status: 'seen', rating: 7, rev: 600 })
+    expect(tablet.entries.get('anilist:3')?.status).toBe('want')
+    expect(tablet.entries.get('anilist:4')?.status).toBe('want')
+    expect(tablet.outbox.size).toBe(0)
+
+    await runSync(phone, server, USER)
+    expect(phone.entries.get('anilist:1')).toMatchObject({ status: 'seen', rating: 9 })
+    expect(phone.entries.get('anilist:2')).toMatchObject({ status: 'seen', rating: 7 })
+    expect(phone.entries.get('anilist:4')?.status).toBe('want')
+  })
+
+  it('on later syncs keeps plain last write wins', async () => {
+    const server = new Server()
+    const phone = new Device()
+    phone.write({ ...entry('anilist:1', 'seen', 100), rating: 9 })
+    await runSync(phone, server, USER)
+    const tablet = new Device()
+    await runSync(tablet, server, USER)
+
+    // Once the device knows the account, a newer skip is a deliberate change.
+    tablet.write(entry('anilist:1', 'skip', 700))
+    await runSync(tablet, server, USER)
+    await runSync(phone, server, USER)
+    expect(phone.entries.get('anilist:1')?.status).toBe('skip')
   })
 
   it('pulls only what changed since the last sync', async () => {

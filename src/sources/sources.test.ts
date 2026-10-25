@@ -168,6 +168,8 @@ describe('mixed deck', () => {
     ])
     const stale: Catalogs = { ...catalogs, movie: cat(['m1'], 'old') }
     expect(buildMixedDeck(['anime', 'movie'], stale, 'h', entries)).toEqual(['a3', 'a1'])
+    // While a source can still load pages, its skipped cards wait.
+    expect(buildMixedDeck(['anime', 'movie'], stale, 'h', entries, undefined, (s) => s !== 'anime')).toEqual(['a3'])
     expect(catalogFor(stale, 'movie', 'h').ids).toEqual([])
     expect(sourcesFor(['cartoon', 'anime'])).toEqual(['anime', 'cartoon-tv', 'cartoon-movie'])
   })

@@ -1,5 +1,5 @@
-// Taste test: two friends answer the same titles, each with their own opinion and a guess of
-// the other's. The result says how close their tastes are and how well each one knows the other.
+// Taste test: two friends say what they thought of the same titles, each on their own device.
+// Nobody sees the other's answers until both finish; the result shows how close their tastes are.
 import { signalWeight } from '../recs/engine'
 import type { Entry, Media } from '../types'
 import { asEntry, mediaSnapshot, type SharedEntry } from './compare'
@@ -25,8 +25,6 @@ export interface TestItem {
 
 export interface TestAnswer {
   opinion: Opinion
-  /** What the person thinks the other one will answer. */
-  guess: Opinion
 }
 
 export type Answers = Record<string, TestAnswer>
@@ -35,13 +33,13 @@ export const TEST_SIZE = 8
 
 const isOpinion = (v: unknown): v is Opinion => OPINIONS.some((o) => o.id === v)
 
-/** Keeps only well formed answers. */
+/** Keeps only well formed answers (tests from the first version also carried a guess, now ignored). */
 export function parseAnswers(raw: unknown): Answers | null {
   if (!raw || typeof raw !== 'object') return null
   const out: Answers = {}
   for (const [id, a] of Object.entries(raw as Record<string, unknown>)) {
-    const answer = a as { opinion?: unknown; guess?: unknown } | null
-    if (answer && isOpinion(answer.opinion) && isOpinion(answer.guess)) out[id] = { opinion: answer.opinion, guess: answer.guess }
+    const answer = a as { opinion?: unknown } | null
+    if (answer && isOpinion(answer.opinion)) out[id] = { opinion: answer.opinion }
   }
   return out
 }
@@ -69,9 +67,9 @@ function shuffle<T>(list: T[], random: () => number): T[] {
 const known = (status: Entry['status']) => status === 'seen' || status === 'watching' || status === 'dropped'
 
 /**
- * Picks the questions: titles both know (to compare), titles only the friend knows (to guess
- * their opinion) and titles only the user knows (so the friend guesses theirs). Strong opinions
- * come first so the guesses mean something; the rest of the order is random.
+ * Picks the questions: titles both know, titles only the friend knows and titles only the user
+ * knows, so each side also meets the other's favorites. Strong opinions come first; the rest of
+ * the order is random.
  */
 export function pickTestItems(
   mine: Map<string, Entry>,
@@ -127,56 +125,38 @@ export function pickTestItems(
   return shuffle(picked, random)
 }
 
+export type Closeness = 'same' | 'close' | 'apart'
+
 export interface ItemResult {
   item: TestItem
-  mine: TestAnswer | null
-  theirs: TestAnswer | null
-  /** Did the user guess the friend's opinion, and the friend the user's? Null without both answers. */
-  iGuessed: 'right' | 'close' | 'wrong' | null
-  theyGuessed: 'right' | 'close' | 'wrong' | null
+  mine: Opinion | null
+  theirs: Opinion | null
+  /** How close the two opinions are; null unless both saw it. */
+  closeness: Closeness | null
 }
 
 export interface TestScore {
   /** 0 to 100 over the titles both have seen; null when there is none. */
   taste: number | null
-  tasteBasis: number
-  myGuesses: number
-  theirGuesses: number
-  total: number
+  /** Titles both have seen, and how many of those got the same answer. */
+  bothSeen: number
+  same: number
   items: ItemResult[]
-}
-
-function guessResult(guess: Opinion, actual: Opinion): 'right' | 'close' | 'wrong' {
-  if (guess === actual) return 'right'
-  if (guess === 'unseen' || actual === 'unseen') return 'wrong'
-  return Math.abs(LEVEL[guess] - LEVEL[actual]) === 1 ? 'close' : 'wrong'
 }
 
 export function scoreTest(items: TestItem[], mine: Answers, theirs: Answers): TestScore {
   let tasteSum = 0
-  let tasteBasis = 0
-  let myGuesses = 0
-  let theirGuesses = 0
+  let bothSeen = 0
+  let same = 0
   const results = items.map((item): ItemResult => {
-    const a = mine[item.mediaId] ?? null
-    const b = theirs[item.mediaId] ?? null
-    if (!a || !b) return { item, mine: a, theirs: b, iGuessed: null, theyGuessed: null }
-    if (a.opinion !== 'unseen' && b.opinion !== 'unseen') {
-      tasteBasis++
-      tasteSum += 1 - Math.abs(LEVEL[a.opinion] - LEVEL[b.opinion]) / 3
-    }
-    const iGuessed = guessResult(a.guess, b.opinion)
-    const theyGuessed = guessResult(b.guess, a.opinion)
-    if (iGuessed === 'right') myGuesses++
-    if (theyGuessed === 'right') theirGuesses++
-    return { item, mine: a, theirs: b, iGuessed, theyGuessed }
+    const a = mine[item.mediaId]?.opinion ?? null
+    const b = theirs[item.mediaId]?.opinion ?? null
+    if (!a || !b || a === 'unseen' || b === 'unseen') return { item, mine: a, theirs: b, closeness: null }
+    const gap = Math.abs(LEVEL[a] - LEVEL[b])
+    bothSeen++
+    tasteSum += 1 - gap / 3
+    if (gap === 0) same++
+    return { item, mine: a, theirs: b, closeness: gap === 0 ? 'same' : gap === 1 ? 'close' : 'apart' }
   })
-  return {
-    taste: tasteBasis ? Math.round((100 * tasteSum) / tasteBasis) : null,
-    tasteBasis,
-    myGuesses,
-    theirGuesses,
-    total: items.length,
-    items: results,
-  }
+  return { taste: bothSeen ? Math.round((100 * tasteSum) / bothSeen) : null, bothSeen, same, items: results }
 }

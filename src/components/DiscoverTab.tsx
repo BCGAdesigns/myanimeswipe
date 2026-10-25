@@ -1,26 +1,36 @@
 import { useEffect, useMemo } from 'react'
 import { filterHash } from '../prefs'
-import { buildMixedDeck, catalogFor, deckPhase, freshBySource, sourcesFor } from '../sources/catalog'
+import { buildMixedDeck, catalogFor, deckPhase, freshBySource, sourcesFor, type SourceKey } from '../sources/catalog'
 import { useStore } from '../store'
 import type { MediaKind } from '../types'
 import { SwipeDeck } from './SwipeDeck'
 
 /** Fetch the next page of a source once fewer than this many of its cards are left. */
 const PREFETCH_AT = 10
-/** Pages in a row without anything new before prefetch stops trying a source. */
-const MAX_EMPTY_PAGES = 3
+/**
+ * Pages in a row without anything new before prefetch stops trying a source. Someone with a big
+ * library on a new device goes through many already classified pages first.
+ */
+const MAX_EMPTY_PAGES = 25
 const NO_KINDS: MediaKind[] = []
+const NO_IDS: string[] = []
 
 export function DiscoverTab({ onOpenPrefs }: { onOpenPrefs: () => void }) {
-  const { ready, prefs, catalogs, entries, media, loading, errors, loadMore, clearSourceErrors } = useStore()
+  const { ready, prefs, catalogs, entries, media, loading, errors, loadMore, clearSourceErrors, cloud } = useStore()
   const hash = prefs ? filterHash(prefs) : ''
   const kinds = prefs?.kinds ?? NO_KINDS
   const sources = useMemo(() => sourcesFor(kinds), [kinds])
   const phase = useMemo(() => deckPhase(entries, media), [entries, media])
-  const deck = useMemo(
-    () => buildMixedDeck(kinds, catalogs, hash, entries, phase).filter((id) => media.has(id)),
-    [kinds, catalogs, hash, entries, phase, media],
-  )
+  const deck = useMemo(() => {
+    const exhausted = (s: SourceKey) => {
+      const cat = catalogFor(catalogs, s, hash)
+      return !cat.hasNextPage || cat.emptyPages >= MAX_EMPTY_PAGES || Boolean(errors[s])
+    }
+    return buildMixedDeck(kinds, catalogs, hash, entries, phase, exhausted).filter((id) => media.has(id))
+  }, [kinds, catalogs, hash, entries, phase, media, errors])
+  // A signed-in device that never synced shows nothing until the library arrives, or it would
+  // offer titles the account already classified.
+  const waiting = Boolean(cloud.email) && !cloud.libraryReady
   const fresh = useMemo(() => freshBySource(catalogs, sources, hash, entries), [catalogs, sources, hash, entries])
 
   useEffect(() => {
@@ -38,7 +48,7 @@ export function DiscoverTab({ onOpenPrefs }: { onOpenPrefs: () => void }) {
 
   return (
     <SwipeDeck
-      ids={deck}
+      ids={waiting ? NO_IDS : deck}
       via="discover"
       banner={
         errorList.length > 0 && deck.length > 0 ? (
@@ -51,7 +61,11 @@ export function DiscoverTab({ onOpenPrefs }: { onOpenPrefs: () => void }) {
         ) : null
       }
       empty={
-        !ready || (anyLoading && errorList.length === 0) ? (
+        waiting ? (
+          <div className="skeleton-card waiting" aria-label="Trazendo sua biblioteca">
+            <span>Trazendo sua biblioteca da nuvem…</span>
+          </div>
+        ) : !ready || (anyLoading && errorList.length === 0) ? (
           <div className="skeleton-card" aria-label="Carregando" />
         ) : errorList.length > 0 ? (
           <div className="empty-state">

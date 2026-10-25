@@ -131,15 +131,18 @@ export const idbStore: LocalStore = {
     return (await db()).get('media', mediaId)
   },
 
-  async applyRemote(changes: RemoteChange[]) {
+  async applyRemote(changes: RemoteChange[], options?: { force?: boolean }) {
     const tx = (await db()).transaction(['entries', 'outbox', 'media'], 'readwrite')
     const entries = tx.objectStore('entries')
+    const outbox = tx.objectStore('outbox')
     const media = tx.objectStore('media')
     const applied: RemoteChange[] = []
     for (const change of changes) {
       const local = await entries.get(change.mediaId)
-      const pending = await tx.objectStore('outbox').get(change.mediaId)
-      if (!isNewer(change.rev, local, pending?.rev)) continue
+      const pending = await outbox.get(change.mediaId)
+      if (options?.force) {
+        if (pending) await outbox.delete(change.mediaId)
+      } else if (!isNewer(change.rev, local, pending?.rev)) continue
       if (change.entry) await entries.put(change.entry)
       else if (local) await entries.delete(change.mediaId)
       // Keep the catalog's copy when there is one; the snapshot only fills gaps.
@@ -148,6 +151,17 @@ export const idbStore: LocalStore = {
     }
     await tx.done
     return applied
+  },
+
+  async restamp(mediaIds: string[], rev: number) {
+    const tx = (await db()).transaction(['entries', 'outbox'], 'readwrite')
+    for (const mediaId of mediaIds) {
+      const entry = await tx.objectStore('entries').get(mediaId)
+      if (!entry) continue
+      await tx.objectStore('entries').put({ ...entry, rev })
+      await tx.objectStore('outbox').put({ mediaId, rev })
+    }
+    await tx.done
   },
 
   async getSyncMeta() {

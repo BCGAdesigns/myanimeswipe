@@ -845,6 +845,15 @@ main {
   animation: shimmer 1.4s linear infinite;
 }
 
+.skeleton-card.waiting {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: var(--muted);
+  font-weight: 700;
+  text-align: center;
+}
+
 @keyframes shimmer {
   from {
     background-position: 100% 0;
