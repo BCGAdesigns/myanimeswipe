@@ -3,14 +3,57 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0f1115" />
-    <meta name="description" content="Dê match no que assistir: anime, filmes, séries e desenhos." />
-    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
-    <link rel="apple-touch-icon" href="./icon-192.png" />
-    <title>WatchMatch</title>
+    <meta name="theme-color" content="#0b0c10" />
+    <meta name="color-scheme" content="dark" />
+    <title>WatchMatch: dê match no que assistir</title>
+    <meta name="description" content="Dê match no que assistir: anime, filmes, séries e desenhos. Arraste para classificar, avalie de 0 a 10 e receba recomendações." />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="WatchMatch" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="WatchMatch" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:title" content="WatchMatch: dê match no que assistir" />
+    <meta property="og:description" content="Anime, filmes, séries e desenhos. Arraste, avalie e receba recomendações." />
+    <meta property="og:url" content="https://myanimeswipe.vercel.app/" />
+    <meta property="og:image" content="https://myanimeswipe.vercel.app/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <style>
+      /* Shown until React mounts, so a cold start is never a white or empty screen. */
+      html,
+      body {
+        margin: 0;
+        background: #0b0c10;
+      }
+      .boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+      }
+      .boot img {
+        width: 72px;
+        height: 72px;
+        animation: boot-pulse 1.4s ease-in-out infinite;
+      }
+      @keyframes boot-pulse {
+        50% {
+          transform: scale(0.92);
+          opacity: 0.7;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="boot"><img src="./favicon.svg" alt="WatchMatch" /></div>
+    </div>
+    <noscript>O WatchMatch precisa de JavaScript para funcionar.</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

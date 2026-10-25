@@ -1,3 +1,4 @@
+import { Check, ChevronLeft, Star, Undo2 } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { classifyRateSwipe, rateQueue, ratedList } from '../logic'
 import { useStore } from '../store'
@@ -7,8 +8,8 @@ import { SwipeCard, type ActionStyle, type SwipeCardHandle } from './SwipeCard'
 type RateAction = 'confirm' | 'skip'
 
 const RATE_STYLES: Record<RateAction, ActionStyle> = {
-  confirm: { text: 'CONFIRMAR', color: '#22c55e', vector: [1, 0] },
-  skip: { text: 'PULAR', color: '#9ca3af', vector: [-1, 0] },
+  confirm: { text: 'CONFIRMAR', color: '#4ade80', vector: [1, 0], icon: <Check strokeWidth={2.6} /> },
+  skip: { text: 'PULAR', color: '#9ca3af', vector: [-1, 0], icon: <ChevronLeft strokeWidth={2.6} /> },
 }
 
 const SCORES = Array.from({ length: 11 }, (_, i) => i)
@@ -56,7 +57,8 @@ export function RateTab() {
         {current && currentMedia ? (
           <>
             <p className="rate-count">
-              {editingId ? 'Reavaliando' : `${queue.length} na fila`}
+              <span>{editingId ? 'Mudando a nota' : `${queue.length} ${queue.length === 1 ? 'título' : 'títulos'} para avaliar`}</span>
+              <span>Arraste: → confirma, ← pula</span>
             </p>
             <div className="rate-deck">
               <SwipeCard
@@ -70,8 +72,7 @@ export function RateTab() {
                   <Cover src={currentMedia.cover} />
                   <div>
                     <h2>
-                      {current.favorite && '⭐ '}
-                      {currentMedia.title}
+                      {current.favorite && <Star className="fav-star" size={16} fill="currentColor" />} {currentMedia.title}
                     </h2>
                     <p className="meta">{metaLine(currentMedia, true)}</p>
                     {highlighted !== null && (
@@ -85,25 +86,45 @@ export function RateTab() {
             </div>
             <div className="score-grid">
               {SCORES.map((s) => (
-                <button key={s} className={s === highlighted ? 'score active' : 'score'} onClick={() => pick(s)}>
+                <button
+                  key={s}
+                  className={s === highlighted ? 'score active' : 'score'}
+                  style={{ ['--s' as string]: s }}
+                  aria-label={`Nota ${s}`}
+                  onClick={() => pick(s)}
+                >
                   {s}
                 </button>
               ))}
             </div>
             <div className="rate-actions">
-              <button onClick={() => cardRef.current?.fling('skip')}>← {editingId ? 'Cancelar' : 'Pular'}</button>
-              <button disabled={!canUndo} onClick={() => undo()}>
-                ↺ Desfazer
+              <button onClick={() => cardRef.current?.fling('skip')}>
+                <ChevronLeft /> {editingId ? 'Cancelar' : 'Pular'}
               </button>
-              <button disabled={highlighted === null} onClick={() => cardRef.current?.fling('confirm')}>
-                Confirmar →
+              <button disabled={!canUndo} onClick={() => undo()}>
+                <Undo2 /> Desfazer
+              </button>
+              <button
+                className={highlighted === null ? undefined : 'primary'}
+                disabled={highlighted === null}
+                onClick={() => cardRef.current?.fling('confirm')}
+              >
+                <Check /> Confirmar
               </button>
             </div>
           </>
         ) : (
-          <div className="notice">
-            <p>Nada na fila. Os títulos marcados como já vistos aparecem aqui para receber nota.</p>
-            {canUndo && <button onClick={() => undo()}>↺ Desfazer</button>}
+          <div className="empty-state">
+            <p className="empty-icon" aria-hidden>
+              ⭐
+            </p>
+            <h2>Tudo avaliado</h2>
+            <p>O que você marcar como já visto aparece aqui para receber nota de 0 a 10.</p>
+            {canUndo && (
+              <button onClick={() => undo()}>
+                <Undo2 size={16} /> Desfazer
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -120,10 +141,14 @@ export function RateTab() {
                   <button onClick={() => startEdit(e.mediaId)}>
                     <Cover src={coverThumb(m)} lazy />
                     <span className="rated-title">
-                      {e.favorite && '⭐ '}
-                      {m.title}
+                      <span>
+                        {e.favorite && <Star className="fav-star" size={13} fill="currentColor" />} {m.title}
+                      </span>
+                      <small>{metaLine(m, true)}</small>
                     </span>
-                    <span className="rated-score">{e.rating}</span>
+                    <span className="rated-score" style={{ ['--s' as string]: e.rating ?? 0 }}>
+                      {e.rating}
+                    </span>
                   </button>
                 </li>
               )

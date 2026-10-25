@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { APP_NAME, APP_TAGLINE } from '../brand'
+import { APP_TAGLINE } from '../brand'
 import { ALL_KINDS, DEFAULT_PREFS } from '../prefs'
 import { useStore } from '../store'
 import type { MediaKind } from '../types'
+import { LogoMark, Wordmark } from './Logo'
 import { KindTiles } from './PreferencesSheet'
 
 /** First run: pick what to classify, like choosing who to see on a dating app. */
@@ -14,13 +15,15 @@ export function Onboarding() {
   return (
     <div className="onboarding">
       <div className="onboarding-hero">
-        <img className="onboarding-logo" src="./icon.svg" alt="" width={72} height={72} />
-        <h1>{APP_NAME}</h1>
+        <LogoMark />
+        <h1>
+          <Wordmark />
+        </h1>
         <p>{APP_TAGLINE}</p>
       </div>
       <h2>O que você quer classificar?</h2>
       <p className="muted">Escolha um ou mais. Dá para mudar quando quiser nas preferências.</p>
-      <KindTiles kinds={kinds} onChange={setKinds} />
+      <KindTiles kinds={kinds} onChange={setKinds} detailed />
       <button className="primary big" disabled={kinds.length === 0} onClick={() => setPrefs({ ...DEFAULT_PREFS, kinds })}>
         Começar
       </button>

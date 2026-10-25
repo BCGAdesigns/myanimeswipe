@@ -1,33 +1,74 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  Bookmark,
+  Check,
+  Clock3,
+  Eye,
+  EyeOff,
+  Heart,
+  LogOut,
+  Pause,
+  Play,
+  Star,
+  ThumbsDown,
+  Undo2,
+  X,
+  type LucideIcon,
+} from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { classifySwipe } from '../logic'
 import { useStore } from '../store'
 import type { Entry, SwipeAction } from '../types'
 import { MediaCard, preloadCover } from './MediaCard'
 import { SwipeCard, type ActionStyle, type SwipeCardHandle } from './SwipeCard'
 
-export const ACTION_STYLES: Record<SwipeAction, ActionStyle & { icon: string }> = {
-  want: { text: 'QUERO VER', color: '#3b82f6', vector: [0, -1], icon: '↑' },
-  watching: { text: 'ASSISTINDO', color: '#14b8a6', vector: [0.71, -0.71], icon: '↗' },
-  seen: { text: 'JÁ VI', color: '#a78bfa', vector: [1, 0], icon: '→' },
-  disliked: { text: 'NÃO GOSTEI', color: '#f97316', vector: [0.71, 0.71], icon: '↘' },
-  reject: { text: 'NÃO QUERO', color: '#ef4444', vector: [0, 1], icon: '↓' },
-  dropped: { text: 'LARGUEI', color: '#fb7185', vector: [-0.71, 0.71], icon: '↙' },
-  skip: { text: 'PULAR', color: '#9ca3af', vector: [-1, 0], icon: '←' },
-  paused: { text: 'EM PAUSA', color: '#38bdf8', vector: [-0.71, -0.71], icon: '↖' },
-  liked: {
-    text: 'GOSTEI',
-    color: '#22c55e',
-    vector: [0.5, -0.87],
-    icon: '♥',
-    burst: { emoji: '❤️', caption: 'Gostei!', holdMs: 750 },
-  },
-  favorite: {
-    text: 'FAVORITO',
-    color: '#facc15',
-    vector: [0, -1],
-    icon: '⭐',
-    burst: { emoji: '⭐', caption: 'Amei! Favorito', holdMs: 950 },
-  },
+export const ACTION_ICONS: Record<SwipeAction, LucideIcon> = {
+  want: Bookmark,
+  watching: Play,
+  seen: Check,
+  disliked: ThumbsDown,
+  reject: X,
+  dropped: LogOut,
+  skip: Clock3,
+  paused: Pause,
+  liked: Heart,
+  favorite: Star,
+}
+
+const style = (
+  action: SwipeAction,
+  text: string,
+  color: string,
+  vector: [number, number],
+  burst?: ActionStyle['burst'],
+): ActionStyle => {
+  const Icon = ACTION_ICONS[action]
+  return { text, color, vector, burst, icon: <Icon strokeWidth={2.6} /> }
+}
+
+export const ACTION_STYLES: Record<SwipeAction, ActionStyle> = {
+  want: style('want', 'QUERO VER', '#60a5fa', [0, -1]),
+  watching: style('watching', 'ASSISTINDO', '#2dd4bf', [0.71, -0.71]),
+  seen: style('seen', 'JÁ VI', '#a78bfa', [1, 0]),
+  disliked: style('disliked', 'NÃO GOSTEI', '#fb923c', [0.71, 0.71]),
+  reject: style('reject', 'NÃO QUERO', '#f87171', [0, 1]),
+  dropped: style('dropped', 'LARGUEI', '#fb7185', [-0.71, 0.71]),
+  skip: style('skip', 'PULAR', '#9ca3af', [-1, 0]),
+  paused: style('paused', 'EM PAUSA', '#38bdf8', [-0.71, -0.71]),
+  liked: style('liked', 'GOSTEI', '#4ade80', [0.5, -0.87], { emoji: '❤️', caption: 'Gostei!', holdMs: 750 }),
+  favorite: style('favorite', 'FAVORITO', '#facc15', [0, -1], { emoji: '⭐', caption: 'Amei! Favorito', holdMs: 950 }),
+}
+
+export const ACTION_LABEL: Record<SwipeAction, string> = {
+  want: 'Quero ver',
+  reject: 'Não quero',
+  skip: 'Pular',
+  seen: 'Já vi',
+  liked: 'Gostei',
+  disliked: 'Não gostei',
+  watching: 'Assistindo',
+  paused: 'Em pausa',
+  dropped: 'Larguei',
+  favorite: 'Favorito',
 }
 
 const KEYS: Record<string, SwipeAction> = {
@@ -70,24 +111,11 @@ function writeShowPad(show: boolean) {
   }
 }
 
-const BUTTON_LABEL: Record<SwipeAction, string> = {
-  want: 'Quero ver',
-  reject: 'Não quero',
-  skip: 'Pular',
-  seen: 'Já vi',
-  liked: 'Gostei',
-  disliked: 'Não gostei',
-  watching: 'Assistindo',
-  paused: 'Em pausa',
-  dropped: 'Larguei',
-  favorite: 'Favorito',
-}
-
 interface Props {
   ids: string[]
   via: Entry['via']
   empty: ReactNode
-  /** Shown above the deck while it still has cards (errors from one source, status lines). */
+  /** Shown above the deck (errors from one source, status lines). */
   banner?: ReactNode
   /** Recommendation reason per media id. */
   reasons?: Record<string, string>
@@ -97,7 +125,9 @@ export function SwipeDeck({ ids, via, empty, banner, reasons }: Props) {
   const { media, swipe, undo, canUndo } = useStore()
   const [details, setDetails] = useState(false)
   const [showPad, setShowPad] = useState(readShowPad)
+  const [returning, setReturning] = useState<string | null>(null)
   const cardRef = useRef<SwipeCardHandle<SwipeAction>>(null)
+  const deckRef = useRef<HTMLDivElement>(null)
 
   const togglePad = () => {
     writeShowPad(!showPad)
@@ -110,6 +140,19 @@ export function SwipeDeck({ ids, via, empty, banner, reasons }: Props) {
 
   useEffect(() => setDetails(false), [topId])
 
+  // The card that was behind is now on top; the new one behind starts small again.
+  useLayoutEffect(() => {
+    deckRef.current?.style.setProperty('--next', '0')
+    deckRef.current?.classList.remove('dragging')
+  }, [topId])
+
+  const onProgress = useCallback((progress: number, dragging: boolean) => {
+    const deck = deckRef.current
+    if (!deck) return
+    deck.style.setProperty('--next', String(progress))
+    deck.classList.toggle('dragging', dragging)
+  }, [])
+
   // Warm the image cache for the next few covers.
   useEffect(() => {
     for (const id of ids.slice(1, 4)) {
@@ -118,6 +161,11 @@ export function SwipeDeck({ ids, via, empty, banner, reasons }: Props) {
     }
   }, [ids, media])
 
+  const doUndo = useCallback(() => {
+    const id = undo()
+    if (id) setReturning(id)
+  }, [undo])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target
@@ -125,7 +173,7 @@ export function SwipeDeck({ ids, via, empty, banner, reasons }: Props) {
       // Keys belong to an open sheet, not to the cards behind it.
       if (e.metaKey || e.ctrlKey || document.querySelector('[aria-modal="true"]')) return
       if (e.key === 'z') {
-        undo()
+        doUndo()
         return
       }
       const action = KEYS[e.key]
@@ -136,14 +184,20 @@ export function SwipeDeck({ ids, via, empty, banner, reasons }: Props) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo])
+  }, [doUndo])
+
+  const commit = (mediaId: string, action: SwipeAction) => {
+    // Celebrations already buzzed on the gesture.
+    if (!ACTION_STYLES[action].burst) navigator.vibrate?.(8)
+    swipe(mediaId, action, via)
+  }
 
   return (
     <div className="deck-wrap">
       {banner}
-      <div className="deck">
+      <div className="deck" ref={deckRef}>
         {below && (
-          <div className="swipe-card under" key={`under-${below.id}`}>
+          <div className="swipe-card under" key={`under-${below.id}`} aria-hidden>
             <MediaCard media={below} showDetails={false} reason={reasons?.[below.id]} />
           </div>
         )}
@@ -151,9 +205,11 @@ export function SwipeDeck({ ids, via, empty, banner, reasons }: Props) {
           <SwipeCard
             key={top.id}
             ref={cardRef}
+            className={returning === top.id ? 'returning' : undefined}
             classify={classifySwipe}
             styles={ACTION_STYLES}
-            onAction={(a) => swipe(top.id, a, via)}
+            onAction={(a) => commit(top.id, a)}
+            onProgress={onProgress}
             onTap={() => setDetails((d) => !d)}
             onDoubleTap={() => {
               navigator.vibrate?.(15)
@@ -170,42 +226,42 @@ export function SwipeDeck({ ids, via, empty, banner, reasons }: Props) {
       {/* Gesture-only mode keeps undo reachable, since diagonal swipes are easy to miss. */}
       {showPad ? (
         <div className="pad">
-          {PAD.map((cell, i) => {
+          {PAD.map((cell) => {
             if (cell === 'hide') {
               return (
-                <button key={i} className="pad-btn undo" onClick={togglePad}>
-                  Ocultar
+                <button key={cell} className="pad-btn quiet" onClick={togglePad} title="Usar só gestos">
+                  <EyeOff /> Ocultar
                 </button>
               )
             }
             if (cell === 'undo') {
               return (
-                <button key={i} className="pad-btn undo" disabled={!canUndo} onClick={() => undo()}>
-                  ↺ Desfazer
+                <button key={cell} className="pad-btn quiet" disabled={!canUndo} onClick={doUndo}>
+                  <Undo2 /> Desfazer
                 </button>
               )
             }
-            const s = ACTION_STYLES[cell]
+            const Icon = ACTION_ICONS[cell]
             return (
               <button
-                key={i}
+                key={cell}
                 className="pad-btn"
-                style={{ color: s.color, borderColor: s.color }}
+                style={{ ['--c' as string]: ACTION_STYLES[cell].color }}
                 disabled={!top}
                 onClick={() => cardRef.current?.fling(cell)}
               >
-                {s.icon} {BUTTON_LABEL[cell]}
+                <Icon strokeWidth={2.4} /> {ACTION_LABEL[cell]}
               </button>
             )
           })}
         </div>
       ) : (
         <div className="pad-compact">
-          <button className="pad-btn undo" disabled={!canUndo} onClick={() => undo()}>
-            ↺ Desfazer
+          <button className="pad-btn quiet" disabled={!canUndo} onClick={doUndo}>
+            <Undo2 /> Desfazer
           </button>
-          <button className="pad-btn undo" onClick={togglePad}>
-            Mostrar botões
+          <button className="pad-btn quiet" onClick={togglePad}>
+            <Eye /> Mostrar botões
           </button>
         </div>
       )}

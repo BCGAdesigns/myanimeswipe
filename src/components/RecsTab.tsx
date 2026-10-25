@@ -1,3 +1,4 @@
+import { RefreshCw, Sparkles } from 'lucide-react'
 import { useEffect, useMemo } from 'react'
 import { buildDeck, countFresh } from '../logic'
 import { isStale, MIN_POSITIVE_SIGNALS, pickSeeds, seedKeyOf } from '../recs/engine'
@@ -56,12 +57,13 @@ export function RecsTab({ onOpenPrefs }: { onOpenPrefs: () => void }) {
       banner={
         <div className="recs-bar">
           <span>
+            <Sparkles />
             {building
               ? 'Atualizando…'
               : (recsError ?? `Com base em ${seedCount} ${seedCount === 1 ? 'título' : 'títulos'} que você curtiu`)}
           </span>
-          <button className="link-btn" disabled={building} onClick={() => void refreshRecs()}>
-            Atualizar
+          <button className="link-btn" disabled={building} onClick={() => void refreshRecs()} aria-label="Atualizar recomendações">
+            <RefreshCw size={15} className={building ? 'spin' : undefined} /> Atualizar
           </button>
         </div>
       }

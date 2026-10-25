@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import { App } from './App'
 import { StoreProvider } from './store'
+import '@fontsource-variable/plus-jakarta-sans/wght.css'
 import './styles.css'
 
 registerSW({ immediate: true })

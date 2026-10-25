@@ -1,7 +1,9 @@
+import { Bookmark, Cloud, CloudAlert, Compass, RefreshCw, Settings as SettingsIcon, SlidersHorizontal, Sparkles, Star } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { APP_NAME } from './brand'
 import { DiscoverTab } from './components/DiscoverTab'
+import { GestureGuide, guideSeen } from './components/GestureGuide'
 import { ListsTab } from './components/ListsTab'
+import { LogoMark, Wordmark } from './components/Logo'
 import { Onboarding } from './components/Onboarding'
 import { PreferencesSheet } from './components/PreferencesSheet'
 import { RateTab } from './components/RateTab'
@@ -13,20 +15,39 @@ import { useStore } from './store'
 
 type Tab = 'discover' | 'rate' | 'recs' | 'lists'
 
+const TABS: { id: Tab; label: string; Icon: typeof Compass }[] = [
+  { id: 'discover', label: 'Descobrir', Icon: Compass },
+  { id: 'rate', label: 'Avaliar', Icon: Star },
+  { id: 'recs', label: 'Para você', Icon: Sparkles },
+  { id: 'lists', label: 'Listas', Icon: Bookmark },
+]
+
+/** Home screen shortcuts open a tab directly (?tab=recs). */
+function initialTab(): Tab {
+  const t = new URLSearchParams(window.location.search).get('tab')
+  return TABS.some((x) => x.id === t) ? (t as Tab) : 'discover'
+}
+
 export function App() {
   const { ready, prefs, entries, error, cloud } = useStore()
-  const [tab, setTab] = useState<Tab>('discover')
-  const [sheet, setSheet] = useState<'settings' | 'prefs' | null>(null)
+  const [tab, setTab] = useState<Tab>(initialTab)
+  const [sheet, setSheet] = useState<'settings' | 'prefs' | 'guide' | null>(null)
+  const [guideDone, setGuideDone] = useState(guideSeen)
   const pending = useMemo(() => rateQueue(entries).length, [entries])
   const filters = prefs ? activeFilterCount(prefs) : 0
   const openPrefs = () => setSheet('prefs')
 
   if (ready && !prefs) return <Onboarding />
 
+  const CloudIcon = cloud.status === 'syncing' ? RefreshCw : cloud.status === 'error' ? CloudAlert : Cloud
+
   return (
     <div className="app">
-      <header>
-        <h1>{APP_NAME}</h1>
+      <header className="topbar">
+        <h1 className="brand">
+          <LogoMark />
+          <Wordmark />
+        </h1>
         <div className="header-actions">
           {cloud.email && (
             <button
@@ -35,14 +56,15 @@ export function App() {
               title={cloud.status === 'error' ? (cloud.message ?? 'Erro ao sincronizar') : 'Sincronizado com a nuvem'}
               onClick={() => setSheet('settings')}
             >
-              {cloud.status === 'syncing' ? '⟳' : cloud.status === 'error' ? '⚠' : '☁'}
+              <CloudIcon />
             </button>
           )}
-          <button className="icon-btn" aria-label="Preferências e filtros" onClick={openPrefs}>
-            🎚{filters > 0 && <span className="dot-count">{filters}</span>}
+          <button className="icon-btn" aria-label="Preferências e filtros" title="Preferências e filtros" onClick={openPrefs}>
+            <SlidersHorizontal />
+            {filters > 0 && <span className="dot-count">{filters}</span>}
           </button>
-          <button className="icon-btn" aria-label="Configurações" onClick={() => setSheet('settings')}>
-            ⚙
+          <button className="icon-btn" aria-label="Configurações" title="Configurações" onClick={() => setSheet('settings')}>
+            <SettingsIcon />
           </button>
         </div>
       </header>
@@ -58,23 +80,33 @@ export function App() {
         {tab === 'lists' && <ListsTab />}
       </main>
 
-      <nav>
-        <button className={tab === 'discover' ? 'active' : ''} onClick={() => setTab('discover')}>
-          Descobrir
-        </button>
-        <button className={tab === 'rate' ? 'active' : ''} onClick={() => setTab('rate')}>
-          Avaliar{pending > 0 && <span className="count">{pending}</span>}
-        </button>
-        <button className={tab === 'recs' ? 'active' : ''} onClick={() => setTab('recs')}>
-          Para você
-        </button>
-        <button className={tab === 'lists' ? 'active' : ''} onClick={() => setTab('lists')}>
-          Listas
-        </button>
+      <nav className="tabbar">
+        {TABS.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            className={tab === id ? 'active' : ''}
+            aria-current={tab === id ? 'page' : undefined}
+            onClick={() => setTab(id)}
+          >
+            <Icon strokeWidth={tab === id ? 2.4 : 2} />
+            {label}
+            {id === 'rate' && pending > 0 && <span className="tab-badge">{pending}</span>}
+          </button>
+        ))}
       </nav>
 
-      {sheet === 'settings' && <Settings onClose={() => setSheet(null)} />}
+      {sheet === 'settings' && (
+        <Settings onClose={() => setSheet(null)} onOpenPrefs={openPrefs} onOpenGuide={() => setSheet('guide')} />
+      )}
       {sheet === 'prefs' && <PreferencesSheet onClose={() => setSheet(null)} />}
+      {(sheet === 'guide' || (ready && !guideDone && tab === 'discover' && sheet === null)) && (
+        <GestureGuide
+          onClose={() => {
+            setGuideDone(true)
+            setSheet(null)
+          }}
+        />
+      )}
     </div>
   )
 }

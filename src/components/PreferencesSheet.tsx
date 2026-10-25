@@ -1,3 +1,4 @@
+import { Check, Crown } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { GENRES } from '../genres'
 import {
@@ -53,7 +54,23 @@ const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter((x
 
 const numOrNull = (v: string) => (v === '' ? null : Number(v))
 
-export function KindTiles({ kinds, onChange }: { kinds: MediaKind[]; onChange: (kinds: MediaKind[]) => void }) {
+const KIND_HINTS: Record<MediaKind, string> = {
+  anime: 'Do AniList, com notas da comunidade',
+  movie: 'Lançamentos e clássicos',
+  series: 'Live action do mundo todo',
+  cartoon: 'Animação ocidental, séries e filmes',
+}
+
+export function KindTiles({
+  kinds,
+  onChange,
+  detailed,
+}: {
+  kinds: MediaKind[]
+  onChange: (kinds: MediaKind[]) => void
+  /** Show a one-line description under each kind (first run). */
+  detailed?: boolean
+}) {
   return (
     <div className="kind-tiles">
       {ALL_KINDS.map((k) => (
@@ -67,7 +84,13 @@ export function KindTiles({ kinds, onChange }: { kinds: MediaKind[]; onChange: (
           <span className="kind-icon" aria-hidden>
             {KIND_ICONS[k]}
           </span>
-          <span>{KIND_LABELS[k]}</span>
+          <span>
+            {KIND_LABELS[k]}
+            {detailed && <small>{KIND_HINTS[k]}</small>}
+          </span>
+          <span className="check" aria-hidden>
+            <Check strokeWidth={3} />
+          </span>
         </button>
       ))}
     </div>
@@ -121,7 +144,9 @@ export function PreferencesSheet({ onClose }: { onClose: () => void }) {
 
       <div className="pro-head">
         <h3>Filtros avançados</h3>
-        <span className="pro-badge">PRO</span>
+        <span className="pro-badge">
+          <Crown strokeWidth={2.6} /> PRO
+        </span>
         {PREMIUM_FILTERS_UNLOCKED && <span className="pro-free">grátis por enquanto</span>}
       </div>
 

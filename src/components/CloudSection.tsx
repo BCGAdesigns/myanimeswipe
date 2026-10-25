@@ -1,3 +1,4 @@
+import { Cloud, LogOut, Mail, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { useStore } from '../store'
 import type { CloudState } from '../sync/useCloudSync'
@@ -39,8 +40,10 @@ export function CloudSection() {
   const notice = error ?? cloud.message
 
   return (
-    <section className="cloud">
-      <h3>Conta e sincronização</h3>
+    <section className="section cloud">
+      <h3>
+        <Cloud /> Conta e sincronização
+      </h3>
       {cloud.status === 'loading' ? (
         <p>Carregando…</p>
       ) : cloud.email ? (
@@ -51,9 +54,11 @@ export function CloudSection() {
           <p>{statusLine(cloud)}</p>
           <div className="row">
             <button onClick={syncNow} disabled={cloud.status === 'syncing'}>
-              Sincronizar agora
+              <RefreshCw /> Sincronizar agora
             </button>
-            <button onClick={() => void signOut()}>Sair</button>
+            <button onClick={() => void signOut()}>
+              <LogOut /> Sair
+            </button>
           </div>
         </>
       ) : sentTo ? (
@@ -65,7 +70,7 @@ export function CloudSection() {
         </>
       ) : (
         <>
-          <p>Entre com seu e-mail para guardar seus dados na nuvem e usar em outros aparelhos.</p>
+          <p>Entre com seu e-mail para guardar seus dados na nuvem e usar em outros aparelhos. Sem senha: chega um link.</p>
           <form className="row" onSubmit={send}>
             <input
               type="email"
@@ -75,8 +80,8 @@ export function CloudSection() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
-            <button type="submit" disabled={sending}>
-              {sending ? 'Enviando…' : 'Enviar link de acesso'}
+            <button type="submit" className="primary" disabled={sending}>
+              <Mail /> {sending ? 'Enviando…' : 'Enviar link de acesso'}
             </button>
           </form>
         </>

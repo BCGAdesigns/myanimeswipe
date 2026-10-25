@@ -1,3 +1,5 @@
+import { ExternalLink, Sparkles } from 'lucide-react'
+import { useState } from 'react'
 import { genreLabel } from '../genres'
 import { KIND_BADGES } from '../prefs'
 import type { Media, MediaKind } from '../types'
@@ -52,7 +54,14 @@ export function coverThumb(m: Media) {
 
 // Both CDNs answer CORS requests, which lets the service worker cache covers (see vite.config.ts).
 // Every <img> of a cover must use the same mode, or a cached no-CORS copy can break a CORS load.
-export function Cover({ src, className, lazy }: { src: string; className?: string; lazy?: boolean }) {
+interface CoverProps {
+  src: string
+  className?: string
+  lazy?: boolean
+  onError?: () => void
+}
+
+export function Cover({ src, className, lazy, onError }: CoverProps) {
   return (
     <img
       className={className}
@@ -62,6 +71,7 @@ export function Cover({ src, className, lazy }: { src: string; className?: strin
       decoding="async"
       loading={lazy ? 'lazy' : undefined}
       draggable={false}
+      onError={onError}
     />
   )
 }
@@ -82,16 +92,26 @@ interface Props {
 }
 
 export function MediaCard({ media, showDetails, reason }: Props) {
+  const [broken, setBroken] = useState(false)
   return (
     <div className="media-card" style={{ backgroundColor: media.color ?? undefined }}>
-      <Cover className="media-cover" src={media.cover} />
+      {broken ? (
+        <div className="cover-fallback">{media.title}</div>
+      ) : (
+        <Cover className="media-cover" src={media.cover} onError={() => setBroken(true)} />
+      )}
       <div className="card-top">
         <span className={`kind-badge kind-${media.kind}`}>{KIND_BADGES[media.kind]}</span>
         {media.links.crunchyroll && <span className="badge-cr">Crunchyroll</span>}
         {media.score !== undefined && <span className="score-badge">★ {formatScore(media.score)}</span>}
       </div>
       <div className={`media-info${showDetails ? ' open' : ''}`}>
-        {reason && <p className="reason">{reason}</p>}
+        {reason && (
+          <p className="reason">
+            <Sparkles strokeWidth={2.4} />
+            {reason}
+          </p>
+        )}
         <h2>{media.title}</h2>
         {media.altTitle && <p className="alt-title">{media.altTitle}</p>}
         <p className="meta">{metaLine({ ...media, score: undefined })}</p>
@@ -101,17 +121,17 @@ export function MediaCard({ media, showDetails, reason }: Props) {
             <div className="links">
               {media.links.site && (
                 <a href={media.links.site} target="_blank" rel="noreferrer" onPointerDown={stop}>
-                  {SOURCE_NAME[media.source]}
+                  {SOURCE_NAME[media.source]} <ExternalLink />
                 </a>
               )}
               {media.links.mal && (
                 <a href={media.links.mal} target="_blank" rel="noreferrer" onPointerDown={stop}>
-                  MyAnimeList
+                  MyAnimeList <ExternalLink />
                 </a>
               )}
               {media.links.crunchyroll && (
                 <a href={media.links.crunchyroll} target="_blank" rel="noreferrer" onPointerDown={stop}>
-                  Crunchyroll
+                  Crunchyroll <ExternalLink />
                 </a>
               )}
             </div>
