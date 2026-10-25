@@ -1857,7 +1857,7 @@ input[role='switch']:checked::after {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(6, 7, 10, 0.93);
+  background: rgba(8, 9, 12, 0.97);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   animation: fade-in 220ms ease-out;

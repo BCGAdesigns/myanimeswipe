@@ -1,6 +1,6 @@
 # WatchMatch
 
-PWA estilo Tinder para catalogar anime, filmes, séries e desenhos: marque o que já viu, o que quer ver e o que não quer, dê nota de 0 a 10 e receba recomendações. Dados do [AniList](https://anilist.co) (anime) e do [TMDB](https://www.themoviedb.org) (filmes, séries e desenhos).
+PWA estilo Tinder para decidir e organizar o que assistir: anime, filmes, séries e desenhos. Arraste para marcar o que já viu, o que quer ver e o que não quer, dê nota de 0 a 10 e receba recomendações. Dados do [AniList](https://anilist.co) (anime) e do [TMDB](https://www.themoviedb.org) (filmes, séries e desenhos), com onde assistir da JustWatch.
 
 O nome do produto fica em `src/brand.ts`; identificadores internos (banco local, backup) continuam `myanimeswipe` para não perder dados.
 
@@ -18,29 +18,36 @@ npm run preview    # serve o build (necessário para testar o PWA/service worker
 
 Para abrir no celular durante o desenvolvimento: `npm run dev -- --host` e acesse o IP da máquina na mesma rede.
 
+Sem as variáveis do Supabase (abaixo), o app roda só com anime e sem conta. Com elas, liga filmes, séries e desenhos (pelo proxy do TMDB) e a sincronização.
+
 ## Publicar
 
 Produção: https://myanimeswipe.vercel.app (projeto `myanimeswipe` na Vercel). Abra no celular e use "Adicionar à tela inicial" para instalar.
 
 O projeto ainda não está ligado ao repositório, então um push não publica sozinho; cada deploy é disparado a partir do repo público (pelo conector da Vercel no Claude). Para ativar o deploy automático (uma vez só): no painel da Vercel, abra o projeto, vá em **Settings → Git → Connect Git Repository**, escolha GitHub, instale o app da Vercel quando pedir e selecione `BCGAdesigns/myanimeswipe`. A partir daí, cada push no branch padrão vira deploy de produção e os outros branches geram previews.
 
-O workflow `.github/workflows/ci.yml` roda testes e build em todo push.
+O workflow `.github/workflows/ci.yml` roda testes e build em todo push. `dist/` é estático e usa caminhos relativos, então também serve em outros hosts sem mudanças.
 
-`dist/` é estático e usa caminhos relativos, então também serve em outros hosts (Netlify, GitHub Pages) sem mudanças.
+## Supabase
 
-## Sincronização (Supabase)
-
-Opcional: sem as variáveis abaixo o app roda só local. Com elas, aparece "Conta e sincronização" nas Configurações (login por link no e-mail).
-
-* Projeto Supabase `myanimeswipe` (região São Paulo). O esquema está em `supabase/migrations/`.
-* Variáveis de build (já cadastradas na Vercel; para rodar local, copie `.env.example` para `.env.local`): `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`. As duas são públicas por design; quem protege os dados são as regras RLS da tabela.
+* Projeto `myanimeswipe` (região São Paulo). Esquema em `supabase/migrations/` (`entries`, `profiles`, função `tmdb_token`).
+* Variáveis de build (já cadastradas na Vercel; para rodar local, copie `.env.example` para `.env.local`): `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`. As duas são públicas por design; quem protege os dados são as regras RLS.
+* Funções em `supabase/functions/`:
+  * `tmdb`: proxy só de leitura para a API do TMDB (sem verificação de JWT, para funcionar sem conta). Lê o token do secret `TMDB_READ_TOKEN` da função ou, se não houver, do Vault (`select vault.create_secret('<token de leitura do TMDB>', 'tmdb_read_token')`). Para trocar a chave, atualize o segredo no Vault; nada no app muda.
+  * `delete-account`: exclui a conta de quem chama (com verificação de JWT); as linhas somem em cascata.
 * No painel do Supabase, **Authentication → URL Configuration → Site URL** precisa ser o endereço do app, para o link do e-mail voltar para ele.
 
 ## Estrutura
 
-* `src/logic.ts`: regras puras (classificação dos gestos, baralho, fila de notas), coberto por testes.
-* `src/sources/anilist.ts`: consulta GraphQL e conversão para o modelo genérico `Media`.
-* `src/db.ts`: IndexedDB (catálogo, animes, swipes, notas e a fila de alterações a sincronizar).
-* `src/sync/`: motor de sincronização (coberto por testes), cliente Supabase e o hook de login.
-* `src/store.tsx`: estado do app, desfazer, exportar/importar.
-* `src/components/`: abas (Descobrir, Avaliar, Para você, Listas) e cards.
+* `src/logic.ts`: regras puras dos gestos, fila de notas e listas.
+* `src/prefs.ts` e `src/genres.ts`: preferências, filtros e o vocabulário único de gêneros.
+* `src/sources/`: AniList (`anilist.ts`), TMDB pelo proxy (`tmdb.ts`), serviços de streaming (`providers.ts`) e o baralho misto (`catalog.ts`).
+* `src/recs/engine.ts`: motor de recomendações da fase 2.
+* `src/db.ts`: IndexedDB (catálogos, títulos, registros, preferências, recomendações e a fila de alterações a sincronizar).
+* `src/sync/`: motor de sincronização, cliente Supabase e o hook de login.
+* `src/store.tsx`: estado do app, desfazer, exportar e importar.
+* `src/components/`: telas (primeira vez, Descobrir, Avaliar, Para você, Listas, preferências, configurações, guia de gestos).
+* `public/`: ícones, imagem de compartilhamento, logo do TMDB, Termos de Uso e Política de Privacidade.
+* `scripts/generate-brand-assets.cjs`: gera ícones e a imagem de compartilhamento a partir do desenho do logo (precisa do Playwright).
+
+Testes: `src/**/*.test.ts` cobrem gestos, sincronização, preferências, consultas ao AniList e ao TMDB, baralho misto, filtros locais e recomendações.
