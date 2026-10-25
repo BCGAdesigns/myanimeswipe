@@ -52,6 +52,11 @@ interface Store {
   classify: (m: Media, action: SwipeAction, via: Entry['via']) => void
   /** Saves a stored 0 to 10 rating; the top one (shown 9) also marks the favorite, any other clears it. */
   rate: (mediaId: string, rating: number) => void
+  /**
+   * Rating from the title sheet: works on titles not in the library yet (they become seen). Null
+   * takes the rating away and sends the title back to the rating queue, the old rating suggested.
+   */
+  rateMedia: (m: Media, rating: number | null, via: Entry['via']) => void
   skipRating: (mediaId: string) => void
   /** Deletes the record so the card returns to the deck as unseen. */
   removeEntry: (mediaId: string) => void
@@ -298,6 +303,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [writeEntry],
   )
 
+  const rateMedia = useCallback<Store['rateMedia']>(
+    (m, rating, via) => {
+      if (!mediaRef.current.has(m.id)) {
+        addMedia([m])
+        db.saveMedia([m]).catch((e) => setError(`Falha ao salvar: ${errorText(e)}`))
+      }
+      const prev = entriesRef.current.get(m.id)
+      const now = Date.now()
+      const base: Entry = prev ?? { mediaId: m.id, status: 'seen', rating: null, suggestedRating: null, via, updatedAt: now }
+      const next: Entry =
+        rating === null
+          ? {
+              ...base,
+              status: 'seen',
+              rating: null,
+              suggestedRating: base.rating ?? base.suggestedRating,
+              favorite: false,
+              queuedAt: now,
+              updatedAt: now,
+            }
+          : { ...base, status: 'seen', rating, favorite: rating === TOP, updatedAt: now }
+      writeEntry(next, prev)
+    },
+    [addMedia, writeEntry],
+  )
+
   const skipRating = useCallback<Store['skipRating']>(
     (mediaId) => {
       const prev = entriesRef.current.get(mediaId)
@@ -500,6 +531,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         swipe,
         classify,
         rate,
+        rateMedia,
         skipRating,
         removeEntry,
         toggleFavorite,

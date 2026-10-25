@@ -73,6 +73,14 @@ describe('arrangeEntries', () => {
     expect(ids({ ...base, sort: 'score' })).toEqual(['c', 'b', 'a'])
   })
 
+  it('puts titles without a confirmed rating after the rated ones', () => {
+    const waiting = entry('w', { rating: null, suggestedRating: 10, updatedAt: 5 })
+    const withWaiting = new Map([...m, ['w', media('w', { title: 'Wait' })]])
+    const sorted = (sort: 'rating-desc' | 'rating-asc') => arrangeEntries([...list, waiting], withWaiting, { ...base, sort }).map((e) => e.mediaId)
+    expect(sorted('rating-desc')).toEqual(['c', 'b', 'a', 'w'])
+    expect(sorted('rating-asc')).toEqual(['a', 'c', 'b', 'w'])
+  })
+
   it('filters by kind and favorites', () => {
     expect(ids({ sort: 'title', kind: 'anime', favoritesOnly: false })).toEqual(['b', 'c'])
     expect(ids({ sort: 'title', kind: 'all', favoritesOnly: true })).toEqual(['b'])

@@ -1145,7 +1145,8 @@ main {
   padding: 2px 0 20px;
 }
 
-.rated ul {
+.rated ul,
+.title-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1153,7 +1154,8 @@ main {
   gap: 6px;
 }
 
-.rated li button {
+.rated li button,
+.title-list li button {
   width: 100%;
   display: flex;
   align-items: center;
@@ -1164,7 +1166,8 @@ main {
   border-radius: 14px;
 }
 
-.rated img {
+.rated img,
+.title-list img {
   width: 40px;
   height: 56px;
   object-fit: cover;
@@ -1203,12 +1206,6 @@ main {
 
 /* Lists tab */
 
-.list-bar {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  margin: 2px 0 12px;
-}
 
 .chips {
   flex: 1;
@@ -1245,23 +1242,7 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
-.media-list {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 18px;
-  display: grid;
-  gap: 8px;
-}
 
-.media-list li {
-  display: flex;
-  gap: 12px;
-  padding: 8px;
-  border-radius: 18px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  animation: item-in 260ms var(--ease-out) both;
-}
 
 @keyframes item-in {
   from {
@@ -1270,64 +1251,13 @@ main {
   }
 }
 
-.media-list img {
-  width: 66px;
-  height: 96px;
-  object-fit: cover;
-  border-radius: 12px;
-  flex-shrink: 0;
-  background: var(--surface-3);
-}
 
-.item-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
 
-.item-title {
-  color: var(--text);
-  font-weight: 700;
-  line-height: 1.25;
-  text-decoration: none;
-}
 
-.item-body .meta {
-  margin: 0;
-  font-size: 0.78rem;
-  color: var(--muted);
-}
 
-.cr-link {
-  color: #fdba74;
-  font-size: 0.76rem;
-  font-weight: 700;
-  text-decoration: none;
-}
 
-.item-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: auto;
-  padding-top: 8px;
-}
 
-.item-actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 0.78rem;
-}
 
-.item-actions svg {
-  width: 14px;
-  height: 14px;
-}
 
 /* Sheets */
 
@@ -2578,12 +2508,6 @@ p.small {
 
 /* Library sort and filter */
 
-.lib-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 12px;
-}
 
 .sort-select {
   position: relative;
@@ -2627,13 +2551,6 @@ p.small {
   font-size: 0.78rem;
 }
 
-.item-cover {
-  padding: 0;
-  border: 0;
-  background: none;
-  border-radius: 12px;
-  flex: none;
-}
 
 button.item-title {
   padding: 0;
@@ -3360,6 +3277,188 @@ span.friend {
 .skeleton-line.short {
   height: 34px;
   margin-top: 0;
+}
+
+/* Lists tab: which list, how it is ordered and filtered, and undo, in one row. */
+.list-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 12px;
+}
+
+.list-picker,
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: var(--surface);
+  font-size: 0.88rem;
+}
+
+.list-picker {
+  flex: none;
+  font-weight: 800;
+}
+
+.list-picker .n,
+.list-options .n {
+  color: var(--muted);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.list-picker svg {
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+}
+
+.filter-btn {
+  flex: 1;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.filter-btn.on {
+  border-color: rgba(167, 139, 250, 0.55);
+  color: #e4dcff;
+}
+
+.filter-btn svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.filter-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-count {
+  flex: none;
+  min-width: 18px;
+  height: 18px;
+  margin-left: auto;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+}
+
+.list-head .icon-btn {
+  flex: none;
+}
+
+.option-list {
+  display: grid;
+  gap: 4px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.option.on {
+  border-color: rgba(167, 139, 250, 0.55);
+  background: rgba(139, 92, 246, 0.16);
+  color: #e4dcff;
+}
+
+.option svg {
+  width: 17px;
+  height: 17px;
+}
+
+.filter-switch {
+  margin-top: 16px;
+}
+
+.list-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.list-options button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  text-align: left;
+}
+
+.list-options button.on {
+  border-color: rgba(167, 139, 250, 0.55);
+  background: rgba(139, 92, 246, 0.16);
+}
+
+.list-option-icon {
+  font-size: 1.15rem;
+}
+
+.list-option-label {
+  flex: 1;
+  font-weight: 750;
+}
+
+.list-options svg {
+  width: 17px;
+  height: 17px;
+  color: var(--accent);
+}
+
+.title-list .take-chip {
+  flex: none;
+}
+
+/* Title sheet: status and rating, the one place to change a title. */
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.status-grid .not-seen-btn {
+  grid-column: 1 / -1;
+  --c: #9ca3af;
+}
+
+.control-hint {
+  margin: 8px 2px 0 !important;
+}
+
+.link-btn.inline-link {
+  padding: 0;
+  font-size: inherit;
+}
+
+.score.is-suggested {
+  outline: 2px dashed hsl(var(--hue) 70% 60% / 0.7);
+  outline-offset: -4px;
 }
 
 /* Comparison with a friend */

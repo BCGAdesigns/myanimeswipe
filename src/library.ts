@@ -33,12 +33,14 @@ export function arrangeEntries(entries: Entry[], media: Map<string, Media>, view
   })
   const byTitle = (a: { m: Media }, b: { m: Media }) => collator.compare(a.m.title, b.m.title)
   const rating = (e: Entry) => e.rating ?? e.suggestedRating
+  // Confirmed ratings first; titles still waiting for one follow, by their suggestion.
+  const unrated = (e: Entry) => (e.rating === null ? 1 : 0)
   rows.sort((a, b) => {
     switch (view.sort) {
       case 'rating-desc':
-        return (rating(b.e) ?? -1) - (rating(a.e) ?? -1) || b.e.updatedAt - a.e.updatedAt
+        return unrated(a.e) - unrated(b.e) || (rating(b.e) ?? -1) - (rating(a.e) ?? -1) || b.e.updatedAt - a.e.updatedAt
       case 'rating-asc':
-        return (rating(a.e) ?? 11) - (rating(b.e) ?? 11) || b.e.updatedAt - a.e.updatedAt
+        return unrated(a.e) - unrated(b.e) || (rating(a.e) ?? 11) - (rating(b.e) ?? 11) || b.e.updatedAt - a.e.updatedAt
       case 'title':
         return byTitle(a, b)
       case 'year':

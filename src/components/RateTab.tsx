@@ -4,9 +4,11 @@ import { arrangeEntries } from '../library'
 import { classifyRateSwipe, rateQueue, ratedList, rateVector } from '../logic'
 import { FAVORITE_STARS, fromStars, STARS, toStars } from '../rating'
 import { useStore } from '../store'
+import type { Media } from '../types'
 import { LibraryControls, usePersistentView } from './LibraryControls'
 import { Cover, coverThumb, MediaCard, metaLine, preloadCover } from './MediaCard'
 import { RatingGuide, ratingGuideSeen } from './RatingGuide'
+import { TitleSheet } from './TitleSheet'
 import { Tabs } from './social/parts'
 import { SwipeCard, type ActionStyle, type SwipeCardHandle } from './SwipeCard'
 
@@ -36,7 +38,6 @@ const RATE_STYLES = {
   skip: { text: 'PULAR', color: '#9ca3af', vector: [-1, 0], icon: <ChevronLeft strokeWidth={2.6} /> },
 } as Record<RateAction, ActionStyle>
 
-const EDIT_STYLES: Record<RateAction, ActionStyle> = { ...RATE_STYLES, skip: { ...RATE_STYLES.skip, text: 'CANCELAR' } }
 
 // Pad that mirrors the drag directions, like the one in Descobrir: 8 up, one less at each step
 // clockwise, and the 9 in the middle, where the card is tapped twice or held.
@@ -74,7 +75,8 @@ type Section = 'queue' | 'rated'
 
 export function RateTab() {
   const { entries, media, rate, skipRating, undo, canUndo, rescaleNotice, dismissRescaleNotice } = useStore()
-  const [editingId, setEditingId] = useState<string | null>(null)
+  /** A rated title open in the title sheet, where its rating and status change. */
+  const [open, setOpen] = useState<Media | null>(null)
   /** The rating the drag points at right now. */
   const [aim, setAim] = useState<number | null>(null)
   const [details, setDetails] = useState(false)
@@ -94,13 +96,13 @@ export function RateTab() {
   const allRated = useMemo(() => ratedList(entries), [entries])
   const rated = useMemo(() => arrangeEntries(allRated, media, view), [allRated, media, view])
 
-  const current = editingId ? entries.get(editingId) : queue[0]
+  const current = queue[0]
   const currentMedia = current ? media.get(current.mediaId) : undefined
-  const next = editingId ? queue[0] : queue[1]
-  const nextMedia = next && next.mediaId !== current?.mediaId ? media.get(next.mediaId) : undefined
-  const stored = current ? ((editingId ? current.rating : null) ?? current.suggestedRating) : null
+  const next = queue[1]
+  const nextMedia = next ? media.get(next.mediaId) : undefined
+  const stored = current?.suggestedRating ?? null
   const highlighted = stored === null ? null : toStars(stored)
-  const cardKey = current ? `${current.mediaId}-${current.queuedAt}-${editingId ?? ''}` : ''
+  const cardKey = current ? `${current.mediaId}-${current.queuedAt}` : ''
   const hasCard = Boolean(current && currentMedia)
 
   // Before the first rating (and once after the scale changed), what each rating means.
@@ -113,11 +115,6 @@ export function RateTab() {
     topRef.current?.closest('main')?.scrollTo({ top: 0 })
   }, [section])
 
-  const showSection = (next: Section) => {
-    // Leaving the deck while changing a rating cancels the change.
-    if (next === 'rated') setEditingId(null)
-    setSection(next)
-  }
 
   const closeGuide = useCallback(() => {
     setGuide(false)
@@ -162,15 +159,12 @@ export function RateTab() {
     setAim(null)
     if (!current) return
     if (a === 'skip') {
-      if (!editingId) skipRating(current.mediaId)
+      skipRating(current.mediaId)
     } else {
       // The 9 celebrates with its own buzz.
       if (a !== '9') navigator.vibrate?.(8)
       rate(current.mediaId, fromStars(Number(a)))
     }
-    // A rating changed from the list goes back to the list.
-    if (editingId) setSection('rated')
-    setEditingId(null)
   }
 
   const giveNine = () => {
@@ -182,11 +176,6 @@ export function RateTab() {
     const id = undo()
     if (id) setReturning(id)
   }, [undo])
-
-  const startEdit = (id: string) => {
-    setEditingId(id)
-    setSection('queue')
-  }
 
   // Desktop: number keys rate, F gives 9, Enter confirms the suggestion, P skips, Z undoes.
   useEffect(() => {
@@ -208,16 +197,15 @@ export function RateTab() {
     return () => window.removeEventListener('keydown', onKey)
   }, [highlighted, doUndo])
 
-  const skipLabel = editingId ? 'Cancelar' : 'Pular'
 
   const head = (
     <div className="rate-head">
       <Tabs
         label="Avaliar"
         value={section}
-        onChange={showSection}
+        onChange={setSection}
         items={[
-          { id: 'queue', label: editingId ? 'Mudando a nota' : 'Para avaliar', badge: editingId ? undefined : queue.length },
+          { id: 'queue', label: 'Para avaliar', badge: queue.length },
           { id: 'rated', label: `Avaliados ${allRated.length}` },
         ]}
       />
@@ -245,7 +233,7 @@ export function RateTab() {
                   ref={cardRef}
                   className={returning === current.mediaId ? 'returning' : undefined}
                   classify={classify}
-                  styles={editingId ? EDIT_STYLES : RATE_STYLES}
+                  styles={RATE_STYLES}
                   onAction={onAction}
                   onProgress={onProgress}
                   onPreview={(a) => setAim(a && a !== 'skip' ? Number(a) : null)}
@@ -259,7 +247,7 @@ export function RateTab() {
                     note={
                       highlighted !== null && (
                         <p className="card-note" style={{ ['--s' as string]: highlighted }}>
-                          {editingId ? 'Nota atual' : 'Sugestão'}{' '}
+                          Sugestão{' '}
                           <strong>
                             {highlighted === FAVORITE_STARS && <Star size={13} fill="currentColor" strokeWidth={0} />}
                             {highlighted}
@@ -298,7 +286,7 @@ export function RateTab() {
                     if (cell === 'skip') {
                       return (
                         <button key={cell} className="pad-btn quiet" onClick={() => cardRef.current?.fling('skip')}>
-                          <ChevronLeft /> {skipLabel}
+                          <ChevronLeft /> Pular
                         </button>
                       )
                     }
@@ -312,7 +300,7 @@ export function RateTab() {
               ) : (
                 <div className="pad-compact">
                   <button className="pad-btn quiet" onClick={() => cardRef.current?.fling('skip')}>
-                    <ChevronLeft /> {skipLabel}
+                    <ChevronLeft /> Pular
                   </button>
                   <button className="pad-btn quiet" disabled={!canUndo} onClick={doUndo}>
                     <Undo2 /> Desfazer
@@ -335,7 +323,7 @@ export function RateTab() {
               </p>
               <div className="row center">
                 {allRated.length > 0 && (
-                  <button className="primary" onClick={() => showSection('rated')}>
+                  <button className="primary" onClick={() => setSection('rated')}>
                     Ver os {allRated.length} avaliados
                   </button>
                 )}
@@ -360,9 +348,9 @@ export function RateTab() {
                 ⭐
               </p>
               <h2>Nada avaliado ainda</h2>
-              <p>Os títulos que você avaliar ficam aqui, com a nota. Toque em um para mudar a nota.</p>
+              <p>Os títulos que você avaliar ficam aqui, com a nota. Toque em um para mudar a nota ou o status.</p>
               {queue.length > 0 && (
-                <button className="primary" onClick={() => showSection('queue')}>
+                <button className="primary" onClick={() => setSection('queue')}>
                   Avaliar {queue.length} {queue.length === 1 ? 'título' : 'títulos'}
                 </button>
               )}
@@ -383,7 +371,7 @@ export function RateTab() {
               const stars = toStars(e.rating)
               return (
                 <li key={e.mediaId}>
-                  <button onClick={() => startEdit(e.mediaId)}>
+                  <button onClick={() => setOpen(m)}>
                     <Cover src={coverThumb(m)} lazy />
                     <span className="rated-title">
                       <span>
@@ -402,6 +390,7 @@ export function RateTab() {
         </section>
       )}
 
+      {open && <TitleSheet media={open} via="discover" onClose={() => setOpen(null)} />}
       {guide && <RatingGuide rescaled={rescaleNotice} onClose={closeGuide} />}
     </div>
   )

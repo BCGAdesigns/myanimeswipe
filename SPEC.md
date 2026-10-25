@@ -74,7 +74,7 @@ Bússola de 8 direções (fatias iguais de 45°) mais 2 gestos de toque. Esquerd
    * **Como dar nota**: antes da primeira nota (e de novo para todo mundo quando a escala mudou) abre uma tela com cada nota, quando dar e o gesto: 9 Favorito (um dos melhores que já viu), 8 Excelente, 7 Muito bom, 6 Bom, 5 Ok (o meio), 4 Fraco, 3 Ruim, 2 Muito ruim, 1 Péssimo. Ela reabre pelo botão "Notas" da aba e em Configurações.
    * **Mudança de 1 a 8 para 1 a 9** (`RESCALE_AT` em `src/rating.ts`): toda nota dada antes dessa data, em qualquer conta, volta para a fila sem nota, com o número antigo como sugestão (9 para favoritos). Roda em cada aparelho ao abrir e em toda nota antiga que chega da nuvem; notas dadas depois da data nunca são tocadas, e a versão do registro sobe só um passo, então qualquer mudança mais nova ganha. O app avisa com uma faixa "Reavaliar" até a pessoa abrir a tela de notas.
 3. **Para você**: recomendações no mesmo baralho e com os mesmos gestos, cada cartão com o motivo ("Porque você favoritou X").
-4. **Listas**: Quero ver, Assistindo, Em pausa, Larguei, Favoritos e Não quero, com ações e desfazer. Tocar num título abre a ficha dele.
+4. **Listas**: uma linha só no topo: o seletor de lista (Quero ver, Assistindo, Em pausa, Já vi, Favoritos, Larguei e Não quero, cada uma com o número de títulos), um botão de ordenar e filtrar que mostra a escolha atual e abre as opções numa folha (ordem, tipo e, nas listas com nota, maior e menor nota), e desfazer. A lista e os filtros ficam salvos no aparelho. Cada título é uma linha enxuta (capa, nome, tipo e ano, e a nota nos vistos); tocar abre a ficha do título, que é o lugar para mudar tudo. Na ordem por nota, os vistos ainda sem nota vêm depois dos que têm.
 5. **Amigos**: feed, amigos, indicações e testes de gosto (abaixo).
 
 **Escala guardada**: os registros continuam guardando a nota de 0 a 10 (como antes), e o app mostra de 1 a 8 (`src/rating.ts`). Notas novas são salvas como 0, 1, 3, 4, 6, 7, 8 e 10; as antigas aparecem no degrau mais próximo (8 e 9 viram 7, 5 e 6 viram 5). Assim sincronização, recomendações, listas de amigos e versões antigas do app seguem funcionando sem migrar dados, e nada se perde se a escala mudar de novo.
@@ -84,7 +84,9 @@ Na lista de avaliados (aba Avaliar) e nas Listas dá para ordenar por mais recen
 ## Busca
 
 * Lupa no topo: busca por nome no AniList (anime) e no TMDB (`/search/multi`, filmes, séries e desenhos; pessoas e animação japonesa ficam de fora), mais os títulos que já estão na sua biblioteca (sem diferenciar acentos). Espera uma pausa na digitação (0,35 s) antes de consultar.
-* Tocar num resultado abre a ficha do título: capa, sinopse, links, situação na sua biblioteca, todas as ações de classificação e, se já viu, a nota de 1 a 8 e o favorito. Registros feitos assim levam `via = 'search'`.
+* Tocar num resultado abre a ficha do título. Registros feitos assim levam `via = 'search'`.
+
+**Ficha do título** (abre da busca, das Listas, dos Avaliados, do feed, das indicações e do perfil dos amigos): é o lugar único para controlar um título. Logo abaixo do nome vêm **Status** (Quero ver, Assistindo, Em pausa, Já vi, Larguei, Não quero, e **Não vi**, que tira o título das listas e o devolve ao Descobrir) e **Nota** de 1 a 9 (dar uma nota marca como já visto; o 9 é o favorito; "Tirar a nota" devolve o título à fila do Avaliar com a nota antiga como sugestão; a sugestão aparece tracejada). Depois vêm gêneros, sinopse, links, amigos e comentários.
 * As últimas 6 buscas ficam salvas no aparelho.
 
 ## Amigos (camada social)

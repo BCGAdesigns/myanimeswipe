@@ -1,4 +1,4 @@
-import { ExternalLink, MessageCircle, Send, Star, Trash } from 'lucide-react'
+import { ExternalLink, EyeOff, MessageCircle, Send, Star } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { COMMENT_MAX, friendsOnTitle, postComment, titleComments, type Comment, type FriendTake, type Person } from '../friends/api'
 import { takeOf, type Take } from '../friends/compare'
@@ -43,8 +43,8 @@ export function statusText(e: Entry): string {
   }
 }
 
-const UNSEEN_ACTIONS: SwipeAction[] = ['want', 'watching', 'seen', 'liked', 'favorite', 'disliked', 'paused', 'dropped', 'reject']
-const SEEN_ACTIONS: SwipeAction[] = ['watching', 'want', 'paused', 'dropped', 'reject']
+/** Where a title can be in the library; "Não vi" (no record) is the way out. */
+const STATUSES: SwipeAction[] = ['want', 'watching', 'paused', 'seen', 'dropped', 'reject']
 
 interface Props {
   media: Media
@@ -57,7 +57,7 @@ interface Props {
 
 /** Everything about one title, and every way to classify it, outside the swipe decks. */
 export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
-  const { entries, classify, rate, removeEntry } = useStore()
+  const { entries, classify, rateMedia, removeEntry } = useStore()
   const { me, myId, friends } = useSocial()
   const entry = entries.get(media.id)
   const [more, setMore] = useState(false)
@@ -136,14 +136,23 @@ export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
     setThread(null)
     void loadComments()
   }
-  const seen = entry?.status === 'seen'
-  const actions = seen ? SEEN_ACTIONS : UNSEEN_ACTIONS
-  const stored = entry ? (entry.rating ?? entry.suggestedRating) : null
-  const current = stored === null ? null : toStars(stored)
+  // Skipped in Descobrir counts as not in the library.
+  const status = entry && entry.status !== 'skip' ? entry.status : null
+  const seen = status === 'seen'
+  const rated = seen && entry?.rating != null ? toStars(entry.rating) : null
+  const suggested = seen && entry?.rating == null && entry?.suggestedRating != null ? toStars(entry.suggestedRating) : null
+  const entryVia = entry?.via ?? via
 
-  const act = (action: SwipeAction) => {
+  const setStatus = (next: SwipeAction | null) => {
+    if (next === status) return
     navigator.vibrate?.(8)
-    classify(media, action, entry?.via ?? via)
+    if (next === null) removeEntry(media.id)
+    else classify(media, next, entryVia)
+  }
+
+  const giveRating = (stars: number | null) => {
+    navigator.vibrate?.(8)
+    rateMedia(media, stars === null ? null : fromStars(stars), entryVia)
   }
 
   return (
@@ -164,6 +173,61 @@ export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
           )}
         </div>
       </div>
+
+      <h4 className="title-section">Status</h4>
+      <div className="status-grid">
+        {STATUSES.map((a) => {
+          const Icon = ACTION_ICONS[a]
+          const on = status === a
+          return (
+            <button
+              key={a}
+              className={`pad-btn${on ? ' on' : ''}`}
+              style={{ ['--c' as string]: ACTION_STYLES[a].color }}
+              aria-pressed={on}
+              onClick={() => setStatus(a)}
+            >
+              <Icon strokeWidth={2.4} /> {ACTION_LABEL[a]}
+            </button>
+          )
+        })}
+        <button className={`pad-btn not-seen-btn${status === null ? ' on' : ''}`} aria-pressed={status === null} onClick={() => setStatus(null)}>
+          <EyeOff strokeWidth={2.4} /> Não vi
+        </button>
+      </div>
+      <p className="small muted control-hint">
+        {status === null ? 'Fora das suas listas.' : 'Não vi tira o título das suas listas, e ele volta para o Descobrir.'}
+      </p>
+
+      <h4 className="title-section">Nota</h4>
+      <div className="score-grid">
+        {STARS.map((s) => (
+          <button
+            key={s}
+            className={`score${s === rated ? ' active' : ''}${s === suggested ? ' is-suggested' : ''}`}
+            style={{ ['--s' as string]: s }}
+            aria-label={s === FAVORITE_STARS ? 'Nota 9, favorito' : `Nota ${s}`}
+            aria-pressed={s === rated}
+            onClick={() => giveRating(s)}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+      <p className="small muted control-hint">
+        {rated !== null ? (
+          <>
+            O 9 é o favorito.{' '}
+            <button className="link-btn inline-link" onClick={() => giveRating(null)}>
+              Tirar a nota
+            </button>
+          </>
+        ) : seen ? (
+          `Sem nota ainda${suggested !== null ? `, sugestão ${suggested}` : ''}. O 9 é o favorito.`
+        ) : (
+          'Dar uma nota marca como já visto. O 9 é o favorito.'
+        )}
+      </p>
 
       {media.genres.length > 0 && (
         <div className="genres">
@@ -195,45 +259,6 @@ export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
             Crunchyroll <ExternalLink />
           </a>
         )}
-      </div>
-
-      {seen && (
-        <>
-          <h4 className="title-section">Sua nota</h4>
-          <div className="score-grid">
-            {STARS.map((s) => (
-              <button
-                key={s}
-                className={s === current ? 'score active' : 'score'}
-                style={{ ['--s' as string]: s }}
-                aria-label={s === FAVORITE_STARS ? 'Nota 9, favorito' : `Nota ${s}`}
-                onClick={() => rate(media.id, fromStars(s))}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-          <p className="small muted">O 9 é o favorito.</p>
-        </>
-      )}
-
-      <h4 className="title-section">{entry ? 'Mudar para' : 'Classificar'}</h4>
-      <div className="pad title-actions">
-        {actions.map((a) => {
-          const Icon = ACTION_ICONS[a]
-          const on = entry?.status === a && !['liked', 'favorite', 'seen', 'disliked'].includes(a)
-          return (
-            <button
-              key={a}
-              className={`pad-btn${on ? ' on' : ''}`}
-              style={{ ['--c' as string]: ACTION_STYLES[a].color }}
-              aria-pressed={on}
-              onClick={() => act(a)}
-            >
-              <Icon strokeWidth={2.4} /> {ACTION_LABEL[a]}
-            </button>
-          )
-        })}
       </div>
 
       {social && (
@@ -310,13 +335,6 @@ export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
         </>
       )}
 
-      {entry && (
-        <div className="row center">
-          <button className="link-btn danger-link" onClick={() => removeEntry(media.id)}>
-            <Trash size={15} /> Tirar da minha biblioteca
-          </button>
-        </div>
-      )}
     </Sheet>
     {recommending && <RecommendSheet media={media} takes={takes ?? []} preselect={recommendTo} onClose={() => setRecommending(false)} />}
     {thread && <CommentThread owner={thread.owner} media={media} take={thread.take} onClose={closeThread} />}
