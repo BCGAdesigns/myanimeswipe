@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyAction, buildDeck, classifyRateSwipe, classifySwipe, rateQueue } from './logic'
+import { applyAction, buildDeck, classifyRateSwipe, classifySwipe, rateQueue, statusList } from './logic'
 import { cleanSynopsis, toMedia } from './sources/anilist'
 import type { Entry } from './types'
 
@@ -67,6 +67,18 @@ describe('rateQueue', () => {
       ['d', applyAction('d', 'want', 'discover', 2)],
     ])
     expect(rateQueue(entries).map((e) => e.mediaId)).toEqual(['b', 'a'])
+  })
+})
+
+describe('statusList', () => {
+  it('filters by status, newest first', () => {
+    const entries = new Map<string, Entry>([
+      ['a', applyAction('a', 'want', 'discover', 1)],
+      ['b', applyAction('b', 'reject', 'discover', 2)],
+      ['c', applyAction('c', 'want', 'recs', 3)],
+    ])
+    expect(statusList(entries, 'want').map((e) => e.mediaId)).toEqual(['c', 'a'])
+    expect(statusList(entries, 'reject').map((e) => e.mediaId)).toEqual(['b'])
   })
 })
 

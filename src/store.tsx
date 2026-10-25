@@ -28,6 +28,8 @@ interface Store {
   swipe: (mediaId: string, action: SwipeAction, via: Entry['via']) => void
   rate: (mediaId: string, rating: number) => void
   skipRating: (mediaId: string) => void
+  /** Deletes the record so the card returns to the deck as unseen. */
+  removeEntry: (mediaId: string) => void
   undo: () => string | null
   loadMore: () => Promise<void>
   exportData: () => ExportFile
@@ -100,6 +102,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     },
     [writeEntry],
   )
+
+  const removeEntry = useCallback<Store['removeEntry']>((mediaId) => {
+    const prev = entriesRef.current.get(mediaId)
+    if (!prev) return
+    setEntries((m) => {
+      const next = new Map(m)
+      next.delete(mediaId)
+      return next
+    })
+    setUndoStack((s) => [...s.slice(-49), { mediaId, prev }])
+    db.deleteEntry(mediaId).catch((e) => setError(`Falha ao remover: ${String(e)}`))
+  }, [])
 
   const undo = useCallback<Store['undo']>(() => {
     const step = undoStack[undoStack.length - 1]
@@ -202,6 +216,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         swipe,
         rate,
         skipRating,
+        removeEntry,
         undo,
         loadMore,
         exportData,

@@ -76,7 +76,7 @@ main {
 
 nav {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--surface-2);
@@ -84,6 +84,9 @@ nav {
 
 nav button {
   background: none;
+  padding: 10px 4px;
+  font-size: 0.88rem;
+  white-space: nowrap;
   color: var(--muted);
   position: relative;
 }
@@ -490,4 +493,84 @@ nav .count {
   white-space: nowrap;
   font-size: 0.9rem;
   padding: 10px 6px;
+}
+
+/* Lists tab */
+
+.segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 6px;
+  margin: 4px 0 12px;
+}
+
+.segmented button {
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.segmented button.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.media-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.media-list li {
+  display: flex;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.media-list img {
+  width: 64px;
+  height: 92px;
+  object-fit: cover;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.item-title {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.item-body .meta {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.cr-link {
+  color: #f47521;
+  font-size: 0.78rem;
+}
+
+.item-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.item-actions button {
+  padding: 6px 10px;
+  font-size: 0.82rem;
 }

@@ -18,7 +18,15 @@ Para abrir no celular durante o desenvolvimento: `npm run dev -- --host` e acess
 
 ## Publicar
 
-`dist/` é estático e usa caminhos relativos, então serve em qualquer host (Vercel, Netlify, GitHub Pages). Depois de publicado, abra no celular e use "Adicionar à tela inicial" para instalar.
+O workflow `.github/workflows/pages.yml` roda testes e build em todo push e publica no GitHub Pages a partir do branch padrão. Para ativar:
+
+1. Em **Settings → Pages**, escolha **Source: GitHub Actions**.
+2. O repositório precisa ser público, a menos que a conta tenha plano pago (Pro, Team ou Enterprise).
+3. Faça um push no branch padrão (ou rode o workflow manualmente em **Actions**).
+
+O endereço fica `https://<usuario>.github.io/myanimeswipe/`. Abra no celular e use "Adicionar à tela inicial" para instalar.
+
+`dist/` é estático e usa caminhos relativos, então também serve em Vercel ou Netlify sem mudanças.
 
 ## Estrutura
 
@@ -26,4 +34,4 @@ Para abrir no celular durante o desenvolvimento: `npm run dev -- --host` e acess
 * `src/sources/anilist.ts`: consulta GraphQL e conversão para o modelo genérico `Media`.
 * `src/db.ts`: IndexedDB (catálogo, animes, swipes e notas).
 * `src/store.tsx`: estado do app, desfazer, exportar/importar.
-* `src/components/`: abas e cards.
+* `src/components/`: abas (Descobrir, Avaliar, Para você, Listas) e cards.

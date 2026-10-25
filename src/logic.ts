@@ -83,3 +83,8 @@ export function ratedList(entries: Map<string, Entry>): Entry[] {
     .filter((e) => e.status === 'seen' && e.rating !== null)
     .sort((a, b) => b.updatedAt - a.updatedAt)
 }
+
+/** Entries with a given status, most recent first (Lists tab). */
+export function statusList(entries: Map<string, Entry>, status: Entry['status']): Entry[] {
+  return [...entries.values()].filter((e) => e.status === status).sort((a, b) => b.updatedAt - a.updatedAt)
+}

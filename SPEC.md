@@ -10,7 +10,8 @@ App estilo Tinder para catalogar animes: marcar o que já viu, o que quer ver e 
 
 * **PWA** (site instalável no celular), mobile first, funciona também no desktop.
 * Stack: Vite + React + TypeScript. **ASSUMPTION** (escolha de stack minha).
-* Hospedagem estática (Vercel ou GitHub Pages). O build usa `base: './'`, então roda em qualquer subpasta.
+* Hospedagem: GitHub Pages via GitHub Actions (`.github/workflows/pages.yml`). Testes e build rodam em todo push; o deploy só acontece no branch padrão. O build usa `base: './'`, então roda em qualquer subpasta.
+* GitHub Pages em repositório privado exige plano pago (Pro, Team ou Enterprise). No plano Free o repositório precisa ser público.
 
 ## Fonte de dados
 
@@ -50,6 +51,7 @@ Lado direito é sempre "já vi", eixo vertical é sempre interesse.
 1. **Descobrir**: baralho do catálogo com os 6 gestos.
 2. **Avaliar**: fila dos "já vi" sem nota confirmada. Grade de toque com 11 botões (0 a 10, inteiros), a nota sugerida aparece destacada. Um toque salva e avança. Swipe para a esquerda pula (vai para o fim da fila), para a direita confirma a nota destacada. Lista dos já avaliados, com toque para reavaliar.
 3. **Para você**: recomendações no mesmo baralho e com os mesmos 6 gestos. Fase 2.
+4. **Listas**: "Quero ver" (marcar como já vi, que manda para a fila de nota, ou remover) e "Não quero" (restaurar, que devolve o anime ao baralho, ou mover para quero ver). Tudo com desfazer.
 
 ## Recomendações (fase 2)
 
@@ -65,7 +67,7 @@ Motor híbrido, local, custo zero:
 
 ## Roadmap
 
-* **Fase 1**: PWA, catálogo AniList, 6 gestos, aba Avaliar, persistência local, exportar/importar.
+* **Fase 1**: PWA, catálogo AniList, 6 gestos, aba Avaliar, aba Listas, persistência local, exportar/importar, deploy no GitHub Pages.
 * **Fase 2**: aba Para você com motor híbrido.
 * **Fase 3**: IA reordenando e explicando.
 * **Futuro**: séries e animação ocidental via TMDB.

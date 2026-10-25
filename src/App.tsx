@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { DiscoverTab } from './components/DiscoverTab'
+import { ListsTab } from './components/ListsTab'
 import { RateTab } from './components/RateTab'
 import { RecsTab } from './components/RecsTab'
 import { Settings } from './components/Settings'
 import { rateQueue } from './logic'
 import { useStore } from './store'
 
-type Tab = 'discover' | 'rate' | 'recs'
+type Tab = 'discover' | 'rate' | 'recs' | 'lists'
 
 export function App() {
   const { entries, error, catalog } = useStore()
@@ -30,6 +31,7 @@ export function App() {
         {tab === 'discover' && <DiscoverTab />}
         {tab === 'rate' && <RateTab />}
         {tab === 'recs' && <RecsTab />}
+        {tab === 'lists' && <ListsTab />}
       </main>
 
       <nav>
@@ -41,6 +43,9 @@ export function App() {
         </button>
         <button className={tab === 'recs' ? 'active' : ''} onClick={() => setTab('recs')}>
           Para você
+        </button>
+        <button className={tab === 'lists' ? 'active' : ''} onClick={() => setTab('lists')}>
+          Listas
         </button>
       </nav>
 
