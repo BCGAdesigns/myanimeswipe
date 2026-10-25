@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronLeft, CircleHelp, Eye, EyeOff, Star, Undo2 } from 'lucide-react'
+import { ChevronLeft, CircleHelp, Eye, EyeOff, Star, Undo2 } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { arrangeEntries } from '../library'
 import { classifyRateSwipe, rateQueue, ratedList, rateVector } from '../logic'
@@ -7,6 +7,7 @@ import { useStore } from '../store'
 import { LibraryControls, usePersistentView } from './LibraryControls'
 import { Cover, coverThumb, MediaCard, metaLine, preloadCover } from './MediaCard'
 import { RatingGuide, ratingGuideSeen } from './RatingGuide'
+import { Tabs } from './social/parts'
 import { SwipeCard, type ActionStyle, type SwipeCardHandle } from './SwipeCard'
 
 type RateKey = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
@@ -68,6 +69,9 @@ function writeShowPad(show: boolean) {
 
 const keyOf = (stars: number) => String(stars) as RateKey
 
+/** The deck of titles waiting for a rating, or the list of rated ones. */
+type Section = 'queue' | 'rated'
+
 export function RateTab() {
   const { entries, media, rate, skipRating, undo, canUndo, rescaleNotice, dismissRescaleNotice } = useStore()
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -77,10 +81,13 @@ export function RateTab() {
   const [showPad, setShowPad] = useState(readShowPad)
   const [returning, setReturning] = useState<string | null>(null)
   const [guide, setGuide] = useState(false)
+  // With nothing left to rate, the rated list is what there is to see.
+  const [section, setSection] = useState<Section>(() =>
+    rateQueue(entries).length === 0 && ratedList(entries).length > 0 ? 'rated' : 'queue',
+  )
   const cardRef = useRef<SwipeCardHandle<RateAction>>(null)
   const deckRef = useRef<HTMLDivElement>(null)
   const topRef = useRef<HTMLDivElement>(null)
-  const ratedRef = useRef<HTMLElement>(null)
 
   const [view, setView] = usePersistentView('rated')
   const queue = useMemo(() => rateQueue(entries), [entries])
@@ -98,8 +105,19 @@ export function RateTab() {
 
   // Before the first rating (and once after the scale changed), what each rating means.
   useEffect(() => {
-    if (hasCard && !ratingGuideSeen()) setGuide(true)
-  }, [hasCard])
+    if (hasCard && section === 'queue' && !ratingGuideSeen()) setGuide(true)
+  }, [hasCard, section])
+
+  // Each section starts at its top.
+  useLayoutEffect(() => {
+    topRef.current?.closest('main')?.scrollTo({ top: 0 })
+  }, [section])
+
+  const showSection = (next: Section) => {
+    // Leaving the deck while changing a rating cancels the change.
+    if (next === 'rated') setEditingId(null)
+    setSection(next)
+  }
 
   const closeGuide = useCallback(() => {
     setGuide(false)
@@ -150,6 +168,8 @@ export function RateTab() {
       if (a !== '9') navigator.vibrate?.(8)
       rate(current.mediaId, fromStars(Number(a)))
     }
+    // A rating changed from the list goes back to the list.
+    if (editingId) setSection('rated')
     setEditingId(null)
   }
 
@@ -165,7 +185,7 @@ export function RateTab() {
 
   const startEdit = (id: string) => {
     setEditingId(id)
-    topRef.current?.scrollIntoView({ behavior: 'smooth' })
+    setSection('queue')
   }
 
   // Desktop: number keys rate, F gives 9, Enter confirms the suggestion, P skips, Z undoes.
@@ -190,149 +210,172 @@ export function RateTab() {
 
   const skipLabel = editingId ? 'Cancelar' : 'Pular'
 
+  const head = (
+    <div className="rate-head">
+      <Tabs
+        label="Avaliar"
+        value={section}
+        onChange={showSection}
+        items={[
+          { id: 'queue', label: editingId ? 'Mudando a nota' : 'Para avaliar', badge: editingId ? undefined : queue.length },
+          { id: 'rated', label: `Avaliados ${allRated.length}` },
+        ]}
+      />
+      <button className="icon-btn" aria-label="Como dar nota" title="Como dar nota" onClick={() => setGuide(true)}>
+        <CircleHelp />
+      </button>
+    </div>
+  )
+
   return (
-    <div className="rate-tab">
-      <div ref={topRef} className={`rate-top${hasCard ? '' : ' done'}`}>
-        {current && currentMedia ? (
-          <>
-            <p className="rate-count">
-              <span>{editingId ? 'Mudando a nota' : `${queue.length} ${queue.length === 1 ? 'título' : 'títulos'} para avaliar`}</span>
-              <span className="rate-count-links">
-                <button className="link-btn" onClick={() => setGuide(true)} aria-label="Como dar nota">
-                  <CircleHelp size={15} /> Notas
-                </button>
-                {allRated.length > 0 && (
-                  <button className="link-btn" onClick={() => ratedRef.current?.scrollIntoView({ behavior: 'smooth' })}>
-                    Avaliados {allRated.length} <ChevronDown size={14} />
-                  </button>
+    <div className="rate-tab" ref={topRef}>
+      {section === 'queue' ? (
+        <div className={`rate-top${hasCard ? '' : ' done'}`}>
+          {head}
+          {current && currentMedia ? (
+            <>
+              <div className="deck" ref={deckRef}>
+                {nextMedia && (
+                  <div className="swipe-card under" key={`under-${nextMedia.id}`} aria-hidden>
+                    <MediaCard media={nextMedia} showDetails={false} />
+                  </div>
                 )}
-              </span>
-            </p>
-            <div className="deck" ref={deckRef}>
-              {nextMedia && (
-                <div className="swipe-card under" key={`under-${nextMedia.id}`} aria-hidden>
-                  <MediaCard media={nextMedia} showDetails={false} />
+                <SwipeCard
+                  key={cardKey}
+                  ref={cardRef}
+                  className={returning === current.mediaId ? 'returning' : undefined}
+                  classify={classify}
+                  styles={editingId ? EDIT_STYLES : RATE_STYLES}
+                  onAction={onAction}
+                  onProgress={onProgress}
+                  onPreview={(a) => setAim(a && a !== 'skip' ? Number(a) : null)}
+                  onTap={() => setDetails((d) => !d)}
+                  onDoubleTap={giveNine}
+                  onLongPress={() => cardRef.current?.fling('9')}
+                >
+                  <MediaCard
+                    media={currentMedia}
+                    showDetails={details}
+                    note={
+                      highlighted !== null && (
+                        <p className="card-note" style={{ ['--s' as string]: highlighted }}>
+                          {editingId ? 'Nota atual' : 'Sugestão'}{' '}
+                          <strong>
+                            {highlighted === FAVORITE_STARS && <Star size={13} fill="currentColor" strokeWidth={0} />}
+                            {highlighted}
+                          </strong>
+                        </p>
+                      )
+                    }
+                    hint="Arraste até a nota · 2 toques ou segurar: 9, favorito · toque: sinopse"
+                  />
+                </SwipeCard>
+              </div>
+              {showPad ? (
+                <div className="pad">
+                  {PAD.map((cell) => {
+                    if (typeof cell === 'number') {
+                      const fav = cell === FAVORITE_STARS
+                      return (
+                        <button
+                          key={cell}
+                          className={`pad-btn rate-btn${fav ? ' fav' : ''}${cell === highlighted ? ' is-suggested' : ''}${cell === aim ? ' is-aim' : ''}`}
+                          style={{ ['--s' as string]: cell }}
+                          aria-label={fav ? 'Nota 9, favorito' : `Nota ${cell}`}
+                          onClick={() => (fav ? giveNine() : cardRef.current?.fling(keyOf(cell)))}
+                        >
+                          <Star fill="currentColor" strokeWidth={0} /> {cell}
+                        </button>
+                      )
+                    }
+                    if (cell === 'undo') {
+                      return (
+                        <button key={cell} className="pad-btn quiet" disabled={!canUndo} onClick={doUndo}>
+                          <Undo2 /> Desfazer
+                        </button>
+                      )
+                    }
+                    if (cell === 'skip') {
+                      return (
+                        <button key={cell} className="pad-btn quiet" onClick={() => cardRef.current?.fling('skip')}>
+                          <ChevronLeft /> {skipLabel}
+                        </button>
+                      )
+                    }
+                    return (
+                      <button key={cell} className="pad-btn quiet" onClick={togglePad} title="Usar só gestos">
+                        <EyeOff /> Ocultar
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="pad-compact">
+                  <button className="pad-btn quiet" onClick={() => cardRef.current?.fling('skip')}>
+                    <ChevronLeft /> {skipLabel}
+                  </button>
+                  <button className="pad-btn quiet" disabled={!canUndo} onClick={doUndo}>
+                    <Undo2 /> Desfazer
+                  </button>
+                  <button className="pad-btn quiet" onClick={togglePad}>
+                    <Eye /> Mostrar botões
+                  </button>
                 </div>
               )}
-              <SwipeCard
-                key={cardKey}
-                ref={cardRef}
-                className={returning === current.mediaId ? 'returning' : undefined}
-                classify={classify}
-                styles={editingId ? EDIT_STYLES : RATE_STYLES}
-                onAction={onAction}
-                onProgress={onProgress}
-                onPreview={(a) => setAim(a && a !== 'skip' ? Number(a) : null)}
-                onTap={() => setDetails((d) => !d)}
-                onDoubleTap={giveNine}
-                onLongPress={() => cardRef.current?.fling('9')}
-              >
-                <MediaCard
-                  media={currentMedia}
-                  showDetails={details}
-                  note={
-                    highlighted !== null && (
-                      <p className="card-note" style={{ ['--s' as string]: highlighted }}>
-                        {editingId ? 'Nota atual' : 'Sugestão'}{' '}
-                        <strong>
-                          {highlighted === FAVORITE_STARS && <Star size={13} fill="currentColor" strokeWidth={0} />}
-                          {highlighted}
-                        </strong>
-                      </p>
-                    )
-                  }
-                  hint="Arraste até a nota · 2 toques ou segurar: 9, favorito · toque: sinopse"
-                />
-              </SwipeCard>
+            </>
+          ) : (
+            <div className="empty-state">
+              <p className="empty-icon" aria-hidden>
+                ⭐
+              </p>
+              <h2>Tudo avaliado</h2>
+              <p>
+                O que você marcar como já visto aparece aqui para receber nota de 1 a 9: arraste na direção da nota, e 2 toques
+                ou segurar dão 9, o favorito.
+              </p>
+              <div className="row center">
+                {allRated.length > 0 && (
+                  <button className="primary" onClick={() => showSection('rated')}>
+                    Ver os {allRated.length} avaliados
+                  </button>
+                )}
+                <button onClick={() => setGuide(true)}>
+                  <CircleHelp size={16} /> O que cada nota significa
+                </button>
+                {canUndo && (
+                  <button onClick={doUndo}>
+                    <Undo2 size={16} /> Desfazer
+                  </button>
+                )}
+              </div>
             </div>
-            {showPad ? (
-              <div className="pad">
-                {PAD.map((cell) => {
-                  if (typeof cell === 'number') {
-                    const fav = cell === FAVORITE_STARS
-                    return (
-                      <button
-                        key={cell}
-                        className={`pad-btn rate-btn${fav ? ' fav' : ''}${cell === highlighted ? ' is-suggested' : ''}${cell === aim ? ' is-aim' : ''}`}
-                        style={{ ['--s' as string]: cell }}
-                        aria-label={fav ? 'Nota 9, favorito' : `Nota ${cell}`}
-                        onClick={() => (fav ? giveNine() : cardRef.current?.fling(keyOf(cell)))}
-                      >
-                        <Star fill="currentColor" strokeWidth={0} /> {cell}
-                      </button>
-                    )
-                  }
-                  if (cell === 'undo') {
-                    return (
-                      <button key={cell} className="pad-btn quiet" disabled={!canUndo} onClick={doUndo}>
-                        <Undo2 /> Desfazer
-                      </button>
-                    )
-                  }
-                  if (cell === 'skip') {
-                    return (
-                      <button key={cell} className="pad-btn quiet" onClick={() => cardRef.current?.fling('skip')}>
-                        <ChevronLeft /> {skipLabel}
-                      </button>
-                    )
-                  }
-                  return (
-                    <button key={cell} className="pad-btn quiet" onClick={togglePad} title="Usar só gestos">
-                      <EyeOff /> Ocultar
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="pad-compact">
-                <button className="pad-btn quiet" onClick={() => cardRef.current?.fling('skip')}>
-                  <ChevronLeft /> {skipLabel}
-                </button>
-                <button className="pad-btn quiet" disabled={!canUndo} onClick={doUndo}>
-                  <Undo2 /> Desfazer
-                </button>
-                <button className="pad-btn quiet" onClick={togglePad}>
-                  <Eye /> Mostrar botões
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="empty-state">
-            <p className="empty-icon" aria-hidden>
-              ⭐
-            </p>
-            <h2>Tudo avaliado</h2>
-            <p>
-              O que você marcar como já visto aparece aqui para receber nota de 1 a 9: arraste na direção da nota, e 2 toques
-              ou segurar dão 9, o favorito.
-            </p>
-            <div className="row center">
-              <button onClick={() => setGuide(true)}>
-                <CircleHelp size={16} /> O que cada nota significa
-              </button>
-              {canUndo && (
-                <button onClick={doUndo}>
-                  <Undo2 size={16} /> Desfazer
+          )}
+        </div>
+      ) : (
+        <section className="rated">
+          {head}
+          {allRated.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-icon" aria-hidden>
+                ⭐
+              </p>
+              <h2>Nada avaliado ainda</h2>
+              <p>Os títulos que você avaliar ficam aqui, com a nota. Toque em um para mudar a nota.</p>
+              {queue.length > 0 && (
+                <button className="primary" onClick={() => showSection('queue')}>
+                  Avaliar {queue.length} {queue.length === 1 ? 'título' : 'títulos'}
                 </button>
               )}
             </div>
-          </div>
-        )}
-      </div>
-
-      {allRated.length > 0 && (
-        <section ref={ratedRef} className="rated">
-          <h3>
-            Avaliados <span className="muted">{allRated.length}</span>
-          </h3>
-          <LibraryControls
-            view={view}
-            onChange={setView}
-            sorts={['recent', 'rating-desc', 'rating-asc', 'title', 'year', 'score']}
-            showFavorites
-          />
-          {rated.length === 0 && <p className="muted small">Nenhum avaliado com esse filtro.</p>}
+          ) : (
+            <LibraryControls
+              view={view}
+              onChange={setView}
+              sorts={['recent', 'rating-desc', 'rating-asc', 'title', 'year', 'score']}
+              showFavorites
+            />
+          )}
+          {allRated.length > 0 && rated.length === 0 && <p className="muted small">Nenhum avaliado com esse filtro.</p>}
           <ul>
             {rated.map((e) => {
               const m = media.get(e.mediaId)
