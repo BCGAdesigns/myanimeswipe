@@ -87,6 +87,7 @@ li {
 
 a {
   color: var(--accent);
+  overflow-wrap: anywhere;
 }
 
 .box {

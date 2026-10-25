@@ -224,7 +224,15 @@ export function SwipeDeck({ ids, via, empty, banner, reasons }: Props) {
         )}
       </div>
       {/* Gesture-only mode keeps undo reachable, since diagonal swipes are easy to miss. */}
-      {showPad ? (
+      {!top ? (
+        canUndo && (
+          <div className="pad-compact center">
+            <button className="pad-btn quiet" onClick={doUndo}>
+              <Undo2 /> Desfazer
+            </button>
+          </div>
+        )
+      ) : showPad ? (
         <div className="pad">
           {PAD.map((cell) => {
             if (cell === 'hide') {

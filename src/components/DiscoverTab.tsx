@@ -1,20 +1,26 @@
 import { useEffect, useMemo } from 'react'
 import { filterHash } from '../prefs'
-import { buildMixedDeck, catalogFor, freshBySource, sourcesFor } from '../sources/catalog'
+import { buildMixedDeck, catalogFor, deckPhase, freshBySource, sourcesFor } from '../sources/catalog'
 import { useStore } from '../store'
+import type { MediaKind } from '../types'
 import { SwipeDeck } from './SwipeDeck'
 
 /** Fetch the next page of a source once fewer than this many of its cards are left. */
 const PREFETCH_AT = 10
 /** Pages in a row without anything new before prefetch stops trying a source. */
 const MAX_EMPTY_PAGES = 3
+const NO_KINDS: MediaKind[] = []
 
 export function DiscoverTab({ onOpenPrefs }: { onOpenPrefs: () => void }) {
-  const { ready, prefs, catalogs, entries, loading, errors, loadMore, clearSourceErrors } = useStore()
+  const { ready, prefs, catalogs, entries, media, loading, errors, loadMore, clearSourceErrors } = useStore()
   const hash = prefs ? filterHash(prefs) : ''
-  const kinds = prefs?.kinds ?? []
+  const kinds = prefs?.kinds ?? NO_KINDS
   const sources = useMemo(() => sourcesFor(kinds), [kinds])
-  const deck = useMemo(() => buildMixedDeck(kinds, catalogs, hash, entries), [kinds, catalogs, hash, entries])
+  const phase = useMemo(() => deckPhase(entries, media), [entries, media])
+  const deck = useMemo(
+    () => buildMixedDeck(kinds, catalogs, hash, entries, phase).filter((id) => media.has(id)),
+    [kinds, catalogs, hash, entries, phase, media],
+  )
   const fresh = useMemo(() => freshBySource(catalogs, sources, hash, entries), [catalogs, sources, hash, entries])
 
   useEffect(() => {

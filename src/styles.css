@@ -830,6 +830,10 @@ main {
   padding: 0 14px;
 }
 
+.pad-compact.center {
+  justify-content: center;
+}
+
 /* Loading and empty states */
 
 .skeleton-card {
@@ -1635,6 +1639,10 @@ main {
   font-size: 0.76rem !important;
 }
 
+.field-hint.after {
+  margin: 10px 0 0 !important;
+}
+
 .field-hint.warn {
   margin-top: 8px !important;
   color: #fca5a5 !important;
@@ -1812,6 +1820,10 @@ input[role='switch']:checked::after {
   font-weight: 800;
 }
 
+.onboarding > p.muted {
+  margin: 0;
+}
+
 .onboarding > .kind-tiles {
   grid-template-columns: 1fr;
   margin: 8px 0 12px;
@@ -1845,9 +1857,9 @@ input[role='switch']:checked::after {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(4, 5, 8, 0.82);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(6, 7, 10, 0.93);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   animation: fade-in 220ms ease-out;
 }
 

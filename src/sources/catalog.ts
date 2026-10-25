@@ -81,21 +81,50 @@ function alternate(a: string[], b: string[]): string[] {
   return out
 }
 
+/** Kind of the last swiped title, and source of the last swiped cartoon; the deck continues after them. */
+export interface DeckPhase {
+  lastKind: MediaKind | null
+  lastCartoon: SourceKey | null
+}
+
+export function deckPhase(entries: Map<string, Entry>, media: Map<string, Media>): DeckPhase {
+  let last: { rev: number; kind: MediaKind } | null = null
+  let lastCartoon: { rev: number; source: SourceKey } | null = null
+  for (const e of entries.values()) {
+    const m = media.get(e.mediaId)
+    if (!m) continue
+    const rev = e.rev ?? e.updatedAt
+    if (!last || rev > last.rev) last = { rev, kind: m.kind }
+    if (m.kind === 'cartoon' && (!lastCartoon || rev > lastCartoon.rev)) {
+      lastCartoon = { rev, source: m.tmdbType === 'movie' ? 'cartoon-movie' : 'cartoon-tv' }
+    }
+  }
+  return { lastKind: last?.kind ?? null, lastCartoon: lastCartoon?.source ?? null }
+}
+
 /**
- * The Discover deck: one card of each chosen kind in turn (anime, movie, series, cartoon), then
- * the skipped cards, oldest skip first.
+ * The Discover deck: one card of each chosen kind in turn (anime, movie, series, cartoon),
+ * starting after the kind swiped last so every kind gets its turn, then the skipped cards,
+ * oldest skip first.
  */
 export function buildMixedDeck(
   kinds: MediaKind[],
   catalogs: Catalogs,
   hash: string,
   entries: Map<string, Entry>,
+  phase: DeckPhase = { lastKind: null, lastCartoon: null },
 ): string[] {
   const sources = sourcesFor(kinds)
   const fresh = freshBySource(catalogs, sources, hash, entries)
-  const perKind = ALL_KINDS.filter((k) => kinds.includes(k)).map((k) =>
-    k === 'cartoon' ? alternate(fresh['cartoon-tv'] ?? [], fresh['cartoon-movie'] ?? []) : (fresh[k] ?? []),
-  )
+  const order = ALL_KINDS.filter((k) => kinds.includes(k))
+  // indexOf is -1 when the last swipe was of a kind no longer chosen: start from the first.
+  const start = phase.lastKind ? (order.indexOf(phase.lastKind) + 1) % order.length : 0
+  const perKind = [...order.slice(start), ...order.slice(0, start)].map((k) => {
+    if (k !== 'cartoon') return fresh[k] ?? []
+    const tv = fresh['cartoon-tv'] ?? []
+    const movies = fresh['cartoon-movie'] ?? []
+    return phase.lastCartoon === 'cartoon-tv' ? alternate(movies, tv) : alternate(tv, movies)
+  })
   const seen = new Set<string>()
   const deck: string[] = []
   const push = (id: string) => {

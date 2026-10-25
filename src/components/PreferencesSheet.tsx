@@ -19,7 +19,7 @@ import { Sheet } from './Sheet'
 
 const SORTS: { value: SortMode; label: string }[] = [
   { value: 'popular', label: 'Populares' },
-  { value: 'top', label: 'Mais bem avaliados' },
+  { value: 'top', label: 'Melhor nota' },
   { value: 'recent', label: 'Lançamentos' },
 ]
 
@@ -337,7 +337,7 @@ export function PreferencesSheet({ onClose }: { onClose: () => void }) {
               )
             })}
           </div>
-          <p className="field-hint">Dados de streaming: JustWatch, via TMDB.</p>
+          <p className="field-hint after">Dados de streaming: JustWatch, via TMDB.</p>
         </section>
       </fieldset>
     </Sheet>
