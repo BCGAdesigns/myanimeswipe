@@ -139,7 +139,10 @@ export function Settings({ onClose, onOpenPrefs, onOpenGuide }: Props) {
         </ul>
         <p>No teclado: setas, A assistindo, P pausa, L larguei, N não gostei, G gostei, F favorito e Z desfaz.</p>
         <h4 className="title-section">Na aba Avaliar</h4>
-        <p>Arraste o título na direção da nota: 8 para cima e a nota cai um a cada passo no sentido horário.</p>
+        <p>
+          Arraste o título na direção da nota: 8 para cima e a nota cai um a cada passo no sentido horário. Os botões embaixo do
+          cartão ficam na mesma posição, e dá para ocultá-los e usar só os gestos.
+        </p>
         <ul className="gesture-help">
           <li>
             <b>↑</b> 8

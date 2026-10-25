@@ -1,5 +1,5 @@
 import { ExternalLink, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { genreLabel } from '../genres'
 import { KIND_BADGES } from '../prefs'
 import type { Media, MediaKind } from '../types'
@@ -87,9 +87,13 @@ interface Props {
   showDetails: boolean
   /** Why it is recommended (Para você tab). */
   reason?: string
+  /** Shown above the title, like the suggested rating in the Avaliar tab. */
+  note?: ReactNode
+  /** Replaces the gesture hint at the bottom of the card. */
+  hint?: string
 }
 
-export function MediaCard({ media, showDetails, reason }: Props) {
+export function MediaCard({ media, showDetails, reason, note, hint }: Props) {
   const [broken, setBroken] = useState(false)
   return (
     <div className="media-card" style={{ backgroundColor: media.color ?? undefined }}>
@@ -104,6 +108,7 @@ export function MediaCard({ media, showDetails, reason }: Props) {
         {media.score !== undefined && <span className="score-badge">★ {formatScore(media.score)}</span>}
       </div>
       <div className={`media-info${showDetails ? ' open' : ''}`}>
+        {note}
         {reason && (
           <p className="reason">
             <Sparkles strokeWidth={2.4} />
@@ -143,7 +148,7 @@ export function MediaCard({ media, showDetails, reason }: Props) {
             </div>
           )
         )}
-        <p className="hint">{showDetails ? 'Toque para fechar' : 'Toque: sinopse · 2 toques: gostei · segurar: favorito'}</p>
+        <p className="hint">{showDetails ? 'Toque para fechar' : (hint ?? 'Toque: sinopse · 2 toques: gostei · segurar: favorito')}</p>
       </div>
     </div>
   )
