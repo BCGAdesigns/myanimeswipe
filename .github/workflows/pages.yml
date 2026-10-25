@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 concurrency:
   group: pages
@@ -39,3 +40,9 @@ jobs:
           git add -A
           git commit -q -m "Deploy ${GITHUB_SHA::7}"
           git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+      # Pushes made with GITHUB_TOKEN never trigger a Pages build, so request one explicitly.
+      - name: Request Pages build
+        if: github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds"
