@@ -84,7 +84,7 @@ export function KindTiles({
           <span className="kind-icon" aria-hidden>
             {KIND_ICONS[k]}
           </span>
-          <span>
+          <span className="kind-text">
             {KIND_LABELS[k]}
             {detailed && <small>{KIND_HINTS[k]}</small>}
           </span>

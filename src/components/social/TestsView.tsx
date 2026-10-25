@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, FlaskConical, Minus, Trash2, X } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, FlaskConical, Minus, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { answerTasteTest, createTasteTest, deleteTasteTest, type Person, type TasteTest } from '../../friends/api'
 import { personName, shortName, timeAgo } from '../../friends/feed'
@@ -164,11 +164,15 @@ function TestGroup({
           const score = t.myAnswers && t.theirAnswers ? scoreTest(t.items, t.myAnswers, t.theirAnswers) : null
           return (
             <li key={t.id}>
-              <button className="friend" onClick={() => (onAction ? onAction(t) : onOpenFriend(t))}>
+              <button
+                className="friend"
+                aria-label={action ? `${action}: teste com ${personName(t)}` : undefined}
+                onClick={() => (onAction ? onAction(t) : onOpenFriend(t))}
+              >
                 <Avatar person={t} />
                 <PersonName person={t} sub={`${t.items.length} títulos · ${t.createdByMe ? 'você criou' : `criado por ${shortName(t)}`} · ${timeAgo(t.createdAt)}`} />
                 {score?.taste != null && <span className="compat-chip">{score.taste}%</span>}
-                {action && <span className="friend-go">{action}</span>}
+                {action && <ChevronRight className="friend-go-icon" aria-hidden />}
               </button>
               <button className="icon-btn" aria-label={`Apagar teste com ${personName(t)}`} onClick={() => onRemove(t)}>
                 <Trash2 />

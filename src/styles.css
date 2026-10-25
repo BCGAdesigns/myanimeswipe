@@ -289,6 +289,7 @@ button.danger {
 main {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 0 14px;
   scrollbar-width: thin;
@@ -787,11 +788,71 @@ main {
   }
 }
 
+/* Single column lists: a long line in one item must never widen the column past the screen. */
+.friend-list,
+.feed-list,
+.rec-list,
+.rated ul,
+.likes-strip ul,
+.comment-list,
+.test-answers {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 380px) {
+  .kind-tile {
+    gap: 8px;
+    padding: 12px 10px;
+  }
+}
+
+/* The smallest phones (320 px): tighter header and pads so nothing pushes the page sideways. */
+@media (max-width: 340px) {
+  .topbar {
+    padding: 8px 6px 6px 12px;
+  }
+
+  .brand {
+    gap: 6px;
+    font-size: 1.05rem;
+  }
+
+  .brand svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .header-actions .icon-btn {
+    width: 34px;
+  }
+
+  .pad-btn {
+    gap: 4px;
+    padding: 0 4px;
+    font-size: 0.72rem;
+  }
+
+  .pad-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .tabs button {
+    gap: 3px;
+    font-size: 0.74rem;
+  }
+
+  .tab-count {
+    min-width: 16px;
+    padding: 0 4px;
+  }
+}
+
 /* Button pad: mirrors the gesture compass. */
 
 .pad {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -1309,6 +1370,7 @@ main {
 }
 
 .sheet-body {
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 4px 20px 24px;
@@ -1514,7 +1576,7 @@ main {
 
 .kind-tiles {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1531,7 +1593,14 @@ main {
   font-weight: 750;
 }
 
+.kind-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .kind-tile .kind-icon {
+  flex: none;
   display: grid;
   place-items: center;
   width: 38px;
@@ -1561,6 +1630,7 @@ main {
 }
 
 .kind-tile .check {
+  flex: none;
   margin-left: auto;
   width: 22px;
   height: 22px;
@@ -1775,11 +1845,12 @@ input[role='switch']:checked::after {
 
 .provider-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 .provider {
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2055,6 +2126,7 @@ p.small {
 
 .search-field {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2077,6 +2149,7 @@ p.small {
 
 .search-field input {
   flex: 1;
+  width: 0;
   min-width: 0;
   height: 100%;
   border: 0;
@@ -2433,6 +2506,7 @@ button.item-title:hover:not(:disabled) {
 
 .friend {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2601,12 +2675,6 @@ button.item-title:hover:not(:disabled) {
   font-weight: 600;
 }
 
-.friend-go {
-  color: var(--accent);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
 .friend-list li > .primary,
 .person-row > button {
   display: inline-flex;
@@ -2693,9 +2761,9 @@ span.friend {
   padding: 4px 0 24px;
 }
 
+/* Longer labels (Indicações) take more room, so a count badge never runs into the next tab. */
 .tabs {
-  display: grid;
-  grid-template-columns: repeat(var(--n, 4), 1fr);
+  display: flex;
   gap: 4px;
   padding: 4px;
   margin: 4px 0 8px;
@@ -2705,6 +2773,7 @@ span.friend {
 }
 
 .tabs button {
+  flex: 1 1 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;

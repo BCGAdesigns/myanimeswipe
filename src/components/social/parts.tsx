@@ -65,7 +65,7 @@ export interface TabItem<T extends string> {
 /** Tabs in a pill track, with a count badge for things waiting for the user. */
 export function Tabs<T extends string>({ items, value, onChange, label }: { items: TabItem<T>[]; value: T; onChange: (id: T) => void; label: string }) {
   return (
-    <div className="tabs" role="tablist" aria-label={label} style={{ ['--n' as string]: items.length }}>
+    <div className="tabs" role="tablist" aria-label={label}>
       {items.map((t) => (
         <button key={t.id} role="tab" aria-selected={value === t.id} className={value === t.id ? 'on' : ''} onClick={() => onChange(t.id)}>
           {t.label}
