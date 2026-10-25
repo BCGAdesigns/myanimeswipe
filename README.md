@@ -18,14 +18,16 @@ Para abrir no celular durante o desenvolvimento: `npm run dev -- --host` e acess
 
 ## Publicar
 
-O workflow `.github/workflows/pages.yml` roda testes e build em todo push. No branch padrão, ele publica o `dist/` no branch `gh-pages`, que o GitHub Pages serve (modo "Deploy from a branch").
+Hospedado na Vercel, que publica sozinha a cada push. Configuração (uma vez só):
 
-* O repositório precisa ser público, a menos que a conta tenha plano pago (Pro, Team ou Enterprise).
-* O Pages foi ligado automaticamente quando o branch `gh-pages` foi criado. Se um dia ele for desligado, reative em **Settings → Pages** com **Source: Deploy from a branch**, branch `gh-pages`, pasta `/ (root)`.
+1. Em https://vercel.com/new, entre com a conta do GitHub e importe `BCGAdesigns/myanimeswipe`.
+2. Mantenha o que a Vercel detectar (Framework Preset: Vite, saída em `dist`) e toque em **Deploy**.
 
-Endereço: https://bcgadesigns.github.io/myanimeswipe/. Abra no celular e use "Adicionar à tela inicial" para instalar.
+O branch padrão do repositório vira produção; pushes em outros branches geram previews com URL própria. O endereço de produção aparece no painel da Vercel. Abra no celular e use "Adicionar à tela inicial" para instalar.
 
-`dist/` é estático e usa caminhos relativos, então também serve em Vercel ou Netlify sem mudanças.
+O workflow `.github/workflows/ci.yml` roda testes e build em todo push.
+
+`dist/` é estático e usa caminhos relativos, então também serve em outros hosts (Netlify, GitHub Pages) sem mudanças.
 
 ## Estrutura
 

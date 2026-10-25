@@ -10,8 +10,8 @@ App estilo Tinder para catalogar animes: marcar o que já viu, o que quer ver e 
 
 * **PWA** (site instalável no celular), mobile first, funciona também no desktop.
 * Stack: Vite + React + TypeScript. **ASSUMPTION** (escolha de stack minha).
-* Hospedagem: GitHub Pages servindo o branch `gh-pages`. O workflow `.github/workflows/pages.yml` roda testes e build em todo push e, no branch padrão, publica o `dist/` no `gh-pages`. O build usa `base: './'`, então roda em qualquer subpasta. Endereço: https://bcgadesigns.github.io/myanimeswipe/
-* GitHub Pages em repositório privado exige plano pago (Pro, Team ou Enterprise). No plano Free o repositório precisa ser público.
+* Hospedagem: Vercel, pela integração com o GitHub. Cada push no branch padrão vira deploy de produção; os outros branches geram previews. O build usa `base: './'`, então roda em qualquer host ou subpasta.
+* CI: o workflow `.github/workflows/ci.yml` roda testes e build em todo push.
 
 ## Fonte de dados
 
@@ -67,7 +67,7 @@ Motor híbrido, local, custo zero:
 
 ## Roadmap
 
-* **Fase 1**: PWA, catálogo AniList, 6 gestos, aba Avaliar, aba Listas, persistência local, exportar/importar, deploy no GitHub Pages.
+* **Fase 1**: PWA, catálogo AniList, 6 gestos, aba Avaliar, aba Listas, persistência local, exportar/importar, deploy na Vercel.
 * **Fase 2**: aba Para você com motor híbrido.
 * **Fase 3**: IA reordenando e explicando.
 * **Futuro**: séries e animação ocidental via TMDB.
