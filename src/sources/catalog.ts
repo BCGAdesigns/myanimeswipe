@@ -95,6 +95,8 @@ export interface DeckPhase {
   lastCartoon: SourceKey | null
 }
 
+const NO_PHASE: DeckPhase = { lastKind: null, lastCartoon: null }
+
 export function deckPhase(entries: Map<string, Entry>, media: Map<string, Media>): DeckPhase {
   let last: { rev: number; kind: MediaKind } | null = null
   let lastCartoon: { rev: number; source: SourceKey } | null = null
@@ -110,24 +112,32 @@ export function deckPhase(entries: Map<string, Entry>, media: Map<string, Media>
   return { lastKind: last?.kind ?? null, lastCartoon: lastCartoon?.source ?? null }
 }
 
+export interface DeckOptions {
+  phase?: DeckPhase
+  /** Skipped cards of a source come back only once it has nothing new left to load. */
+  exhausted?: (source: SourceKey) => boolean
+  /** Never in the deck, skipped or not (later seasons of dropped anime). */
+  hidden?: ReadonlySet<string>
+  /** Reorders each source's unswiped titles (by taste, or shuffled); catalog order without it. */
+  arrange?: (ids: string[]) => string[]
+}
+
 /**
  * The Discover deck: one card of each chosen kind in turn (anime, movie, series, cartoon),
  * starting after the kind swiped last so every kind gets its turn, then the skipped cards,
  * oldest skip first. Skipped cards of a source come back only once it has nothing new left to
- * load (`exhausted`), so a new device fetches more pages instead of repeating them. Hidden ids
- * (later seasons of dropped anime) never enter, skipped or not.
+ * load (`exhausted`), so a new device fetches more pages instead of repeating them.
  */
 export function buildMixedDeck(
   kinds: MediaKind[],
   catalogs: Catalogs,
   hash: string,
   entries: Map<string, Entry>,
-  phase: DeckPhase = { lastKind: null, lastCartoon: null },
-  exhausted: (source: SourceKey) => boolean = () => true,
-  hidden: ReadonlySet<string> = NONE,
+  { phase = NO_PHASE, exhausted = () => true, hidden = NONE, arrange }: DeckOptions = {},
 ): string[] {
   const sources = sourcesFor(kinds)
   const fresh = freshBySource(catalogs, sources, hash, entries, hidden)
+  if (arrange) for (const s of sources) fresh[s] = arrange(fresh[s] ?? [])
   const order = ALL_KINDS.filter((k) => kinds.includes(k))
   // indexOf is -1 when the last swipe was of a kind no longer chosen: start from the first.
   const start = phase.lastKind ? (order.indexOf(phase.lastKind) + 1) % order.length : 0

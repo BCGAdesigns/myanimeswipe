@@ -35,12 +35,18 @@ describe('normalizePrefs', () => {
   it('never ends up with nothing to classify', () => {
     expect(normalizePrefs({ kinds: [] }).kinds).toEqual(ALL_KINDS)
   })
+
+  it('deals Descobrir by taste unless a shuffle was chosen', () => {
+    expect(normalizePrefs({}).discoverOrder).toBe('taste')
+    expect(normalizePrefs({ discoverOrder: 'random' }).discoverOrder).toBe('random')
+    expect(normalizePrefs({ discoverOrder: 'chaos' }).discoverOrder).toBe('taste')
+  })
 })
 
 describe('filterHash', () => {
-  it('ignores kinds, timestamps and list order', () => {
+  it('ignores kinds, timestamps, list order and how Descobrir deals the titles', () => {
     const a = { ...DEFAULT_PREFS, kinds: ['anime' as const], avoidGenres: ['horror', 'drama'], updatedAt: 1 }
-    const b = { ...DEFAULT_PREFS, kinds: ALL_KINDS, avoidGenres: ['drama', 'horror'], updatedAt: 2 }
+    const b = { ...DEFAULT_PREFS, kinds: ALL_KINDS, avoidGenres: ['drama', 'horror'], updatedAt: 2, discoverOrder: 'random' as const }
     expect(filterHash(a)).toBe(filterHash(b))
   })
 

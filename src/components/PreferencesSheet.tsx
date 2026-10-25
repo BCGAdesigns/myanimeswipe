@@ -1,5 +1,6 @@
 import { Check, Crown } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { PERSONALIZE_AFTER } from '../discover'
 import { GENRES } from '../genres'
 import {
   ALL_ANIME_FORMATS,
@@ -9,6 +10,7 @@ import {
   KIND_LABELS,
   PREMIUM_FILTERS_UNLOCKED,
   type AnimeFormat,
+  type DiscoverOrder,
   type Preferences,
   type SortMode,
 } from '../prefs'
@@ -22,6 +24,19 @@ const SORTS: { value: SortMode; label: string }[] = [
   { value: 'top', label: 'Melhor nota' },
   { value: 'recent', label: 'Lançamentos' },
 ]
+
+const ORDERS: { value: DiscoverOrder; label: string }[] = [
+  { value: 'taste', label: 'Pelo seu gosto' },
+  { value: 'random', label: 'Aleatória' },
+]
+
+function orderHint(order: DiscoverOrder, classified: number): string {
+  if (order === 'random') return 'Embaralha os títulos que os filtros trazem, sem olhar o seu gosto.'
+  const left = PERSONALIZE_AFTER - classified
+  return left > 0
+    ? `Depois de ${PERSONALIZE_AFTER} títulos classificados, o que combina com o seu gosto vem primeiro. ${left === 1 ? 'Falta 1' : `Faltam ${left}`}.`
+    : 'O que combina com o que você curtiu vem primeiro. Cada classificação ajusta a ordem.'
+}
 
 const FORMAT_LABEL: Record<AnimeFormat, string> = {
   TV: 'TV',
@@ -98,7 +113,7 @@ export function KindTiles({
 }
 
 export function PreferencesSheet({ onClose }: { onClose: () => void }) {
-  const { prefs, setPrefs } = useStore()
+  const { prefs, setPrefs, entries } = useStore()
   const [draft, setDraft] = useState<Preferences>(prefs ?? DEFAULT_PREFS)
   const set = <K extends keyof Preferences>(key: K, value: Preferences[K]) => setDraft((d) => ({ ...d, [key]: value }))
 
@@ -129,7 +144,9 @@ export function PreferencesSheet({ onClose }: { onClose: () => void }) {
       onClose={apply}
       footer={
         <>
-          <button onClick={() => setDraft({ ...DEFAULT_PREFS, kinds: draft.kinds })}>Restaurar filtros</button>
+          <button onClick={() => setDraft({ ...DEFAULT_PREFS, kinds: draft.kinds, discoverOrder: draft.discoverOrder })}>
+            Restaurar filtros
+          </button>
           <button className="primary" disabled={!valid} onClick={apply}>
             {changed ? 'Aplicar' : 'Pronto'}
           </button>
@@ -140,6 +157,25 @@ export function PreferencesSheet({ onClose }: { onClose: () => void }) {
         <h3>O que classificar</h3>
         <KindTiles kinds={draft.kinds} onChange={(kinds) => set('kinds', kinds)} />
         {!valid && <p className="field-hint warn">Escolha pelo menos um tipo.</p>}
+      </section>
+
+      <section className="pref-section">
+        <h3>Ordem do Descobrir</h3>
+        <div className="segmented two" role="radiogroup" aria-label="Ordem do Descobrir">
+          {ORDERS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={draft.discoverOrder === o.value}
+              className={draft.discoverOrder === o.value ? 'on' : ''}
+              onClick={() => set('discoverOrder', o.value)}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <p className="field-hint after">{orderHint(draft.discoverOrder, entries.size)}</p>
       </section>
 
       <div className="pro-head">

@@ -119,9 +119,11 @@ interface Props {
   banner?: ReactNode
   /** Recommendation reason per media id. */
   reasons?: Record<string, string>
+  /** Called with the title an undo brought back, before the deck renders again. */
+  onUndo?: (mediaId: string) => void
 }
 
-export function SwipeDeck({ ids, via, empty, banner, reasons }: Props) {
+export function SwipeDeck({ ids, via, empty, banner, reasons, onUndo }: Props) {
   const { media, swipe, undo, canUndo } = useStore()
   const [details, setDetails] = useState(false)
   const [showPad, setShowPad] = useState(readShowPad)
@@ -163,8 +165,10 @@ export function SwipeDeck({ ids, via, empty, banner, reasons }: Props) {
 
   const doUndo = useCallback(() => {
     const id = undo()
-    if (id) setReturning(id)
-  }, [undo])
+    if (!id) return
+    onUndo?.(id)
+    setReturning(id)
+  }, [undo, onUndo])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

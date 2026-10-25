@@ -145,7 +145,7 @@ describe('mixed deck', () => {
   })
 
   it('continues after the kind swiped last', () => {
-    const deck = buildMixedDeck(all, catalogs, 'h', new Map(), { lastKind: 'anime', lastCartoon: 'cartoon-tv' })
+    const deck = buildMixedDeck(all, catalogs, 'h', new Map(), { phase: { lastKind: 'anime', lastCartoon: 'cartoon-tv' } })
     expect(deck.slice(0, 4)).toEqual(['m1', 's1', 'cm1', 'a1'])
   })
 
@@ -169,7 +169,7 @@ describe('mixed deck', () => {
     const stale: Catalogs = { ...catalogs, movie: cat(['m1'], 'old') }
     expect(buildMixedDeck(['anime', 'movie'], stale, 'h', entries)).toEqual(['a3', 'a1'])
     // While a source can still load pages, its skipped cards wait.
-    expect(buildMixedDeck(['anime', 'movie'], stale, 'h', entries, undefined, (s) => s !== 'anime')).toEqual(['a3'])
+    expect(buildMixedDeck(['anime', 'movie'], stale, 'h', entries, { exhausted: (s) => s !== 'anime' })).toEqual(['a3'])
     expect(catalogFor(stale, 'movie', 'h').ids).toEqual([])
     expect(sourcesFor(['cartoon', 'anime'])).toEqual(['anime', 'cartoon-tv', 'cartoon-movie'])
   })
@@ -179,8 +179,16 @@ describe('mixed deck', () => {
       ['a3', { mediaId: 'a3', status: 'skip', skippedAt: 2, rating: null, suggestedRating: null, via: 'discover', updatedAt: 2 }],
     ])
     const hidden = new Set(['a1', 'a3'])
-    expect(buildMixedDeck(['anime', 'movie'], catalogs, 'h', entries, undefined, undefined, hidden)).toEqual(['a2', 'm1', 'm2'])
+    expect(buildMixedDeck(['anime', 'movie'], catalogs, 'h', entries, { hidden })).toEqual(['a2', 'm1', 'm2'])
     expect(freshBySource(catalogs, ['anime'], 'h', entries, hidden)).toEqual({ anime: ['a2'] })
+  })
+
+  it('reorders each source before taking turns, and leaves skipped cards last', () => {
+    const entries = new Map<string, Entry>([
+      ['a1', { mediaId: 'a1', status: 'skip', skippedAt: 2, rating: null, suggestedRating: null, via: 'discover', updatedAt: 2 }],
+    ])
+    const reversed = (ids: string[]) => [...ids].reverse()
+    expect(buildMixedDeck(all, catalogs, 'h', entries, { arrange: reversed })).toEqual(['a3', 'm2', 's1', 'ct2', 'a2', 'm1', 'cm1', 'ct1', 'a1'])
   })
 })
 

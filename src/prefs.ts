@@ -2,6 +2,8 @@ import type { MediaKind } from './types'
 
 export type AnimeFormat = 'TV' | 'TV_SHORT' | 'MOVIE' | 'OVA' | 'ONA' | 'SPECIAL'
 export type SortMode = 'popular' | 'top' | 'recent'
+/** How Descobrir deals the titles it loaded: by the user's taste (once it is known) or shuffled. */
+export type DiscoverOrder = 'taste' | 'random'
 
 /** What the user wants to classify, plus discovery filters (the Tinder "age and distance"). */
 export interface Preferences {
@@ -24,6 +26,8 @@ export interface Preferences {
   streamingOnly: boolean
   /** TMDB watch provider ids in Brazil; empty means any. */
   providers: number[]
+  /** Not a filter: it reorders what the filters brought, so the catalogs stay. */
+  discoverOrder: DiscoverOrder
   updatedAt: number
 }
 
@@ -43,6 +47,7 @@ export const DEFAULT_PREFS: Preferences = {
   languages: [],
   streamingOnly: false,
   providers: [],
+  discoverOrder: 'taste',
   updatedAt: 0,
 }
 
@@ -93,13 +98,14 @@ export function normalizePrefs(p: unknown): Preferences {
     languages: list<string>(raw.languages, (x) => typeof x === 'string', []),
     streamingOnly: raw.streamingOnly === true,
     providers: list<number>(raw.providers, (x) => typeof x === 'number', []),
+    discoverOrder: raw.discoverOrder === 'random' ? 'random' : 'taste',
     updatedAt: num(raw.updatedAt) ?? 0,
   }
 }
 
 /** Identifies the catalog a set of filters produces; kinds only pick which catalogs are shown. */
 export function filterHash(p: Preferences): string {
-  const { kinds: _kinds, updatedAt: _updatedAt, ...filters } = p
+  const { kinds: _kinds, updatedAt: _updatedAt, discoverOrder: _order, ...filters } = p
   const stable = Object.entries(filters)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => [k, Array.isArray(v) ? [...v].sort() : v])

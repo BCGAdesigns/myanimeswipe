@@ -45,6 +45,7 @@ O workflow `.github/workflows/ci.yml` roda testes e build em todo push. `dist/` 
 * `src/sources/`: AniList (`anilist.ts`), TMDB pelo proxy (`tmdb.ts`), serviços de streaming (`providers.ts`) e o baralho misto (`catalog.ts`).
 * `src/recs/engine.ts`: motor de recomendações da fase 2.
 * `src/sequels.ts`: as próximas temporadas dos animes largados (cadeia de continuações do AniList), que ficam fora do Descobrir e de Para você.
+* `src/discover.ts`: ordem do baralho do Descobrir (catálogo, pelo seu gosto depois de 50 classificações, ou aleatória).
 * `src/library.ts`: ordenação, filtros e busca na biblioteca do usuário.
 * `src/friends/`: camada social: chamadas ao servidor (`api.ts`), estado compartilhado e contadores (`social.tsx`), compatibilidade e comparação de listas (`compare.ts`), teste de gosto (`taste.ts`) e textos do feed (`feed.ts`).
 * `src/db.ts`: IndexedDB (catálogos, títulos, registros, preferências, recomendações, continuações dos largados e a fila de alterações a sincronizar).
@@ -54,4 +55,4 @@ O workflow `.github/workflows/ci.yml` roda testes e build em todo push. `dist/` 
 * `public/`: ícones, imagem de compartilhamento, logo do TMDB, Termos de Uso e Política de Privacidade.
 * `scripts/generate-brand-assets.cjs`: gera ícones e a imagem de compartilhamento a partir do desenho do logo (precisa do Playwright).
 
-Testes: `src/**/*.test.ts` cobrem gestos, sincronização, preferências, consultas ao AniList e ao TMDB, baralho misto, filtros locais, recomendações, as continuações dos largados, ordenação e busca na biblioteca, a compatibilidade e a comparação com amigos, o teste de gosto e os textos do feed.
+Testes: `src/**/*.test.ts` cobrem gestos, sincronização, preferências, consultas ao AniList e ao TMDB, baralho misto, filtros locais, recomendações, as continuações dos largados, a ordem do Descobrir, ordenação e busca na biblioteca, a compatibilidade e a comparação com amigos, o teste de gosto e os textos do feed.

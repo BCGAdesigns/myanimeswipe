@@ -404,6 +404,29 @@ main {
   font-size: 0.82rem;
 }
 
+/* Descobrir started following the user's taste. Keeps its height above the deck on short screens. */
+.banner.info {
+  flex: none;
+  padding: 6px 4px 6px 12px;
+  background: rgba(139, 92, 246, 0.16);
+  border-color: rgba(167, 139, 250, 0.35);
+  color: #e4dcff;
+  line-height: 1.35;
+}
+
+.banner.info svg {
+  width: 15px;
+  height: 15px;
+  margin-right: 2px;
+  color: var(--accent);
+  vertical-align: -3px;
+}
+
+.banner-actions {
+  display: flex;
+  flex: none;
+}
+
 .recs-bar {
   padding-left: 4px;
 }
@@ -1659,6 +1682,10 @@ main {
   padding: 4px;
   border-radius: 14px;
   background: var(--surface-2);
+}
+
+.segmented.two {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .segmented button {
