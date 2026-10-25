@@ -105,8 +105,9 @@ export function tasteProfile(entries: Iterable<Entry>, media: Map<string, Media>
     const w = signalWeight(e)
     const m = media.get(e.mediaId)
     if (!w || !m) continue
-    for (const g of m.genres) add(`g:${g}`, w)
-    for (const t of m.tags) if (t.rank >= TAG_RANK) add(`t:${t.name}`, (w * t.rank) / 100)
+    // Snapshots from older syncs or other people's lists may lack tags.
+    for (const g of m.genres ?? []) add(`g:${g}`, w)
+    for (const t of m.tags ?? []) if (t.rank >= TAG_RANK) add(`t:${t.name}`, (w * t.rank) / 100)
   }
   let max = 0
   for (const v of profile.values()) max = Math.max(max, Math.abs(v))
@@ -116,7 +117,7 @@ export function tasteProfile(entries: Iterable<Entry>, media: Map<string, Media>
 
 /** 0..1: how well a title's genres and tags match the profile (0.5 = no information). */
 export function contentScore(m: Media, profile: Map<string, number>): number {
-  const features = [...m.genres.map((g) => `g:${g}`), ...m.tags.filter((t) => t.rank >= TAG_RANK).map((t) => `t:${t.name}`)]
+  const features = [...(m.genres ?? []).map((g) => `g:${g}`), ...(m.tags ?? []).filter((t) => t.rank >= TAG_RANK).map((t) => `t:${t.name}`)]
   if (!features.length) return 0.5
   const sum = features.reduce((s, f) => s + (profile.get(f) ?? 0), 0)
   return (sum / features.length + 1) / 2

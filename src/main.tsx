@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import { App } from './App'
+import { SocialProvider } from './friends/social'
 import { StoreProvider } from './store'
 import '@fontsource-variable/plus-jakarta-sans/wght.css'
 import './styles.css'
@@ -16,7 +17,9 @@ if ('caches' in window) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <StoreProvider>
-      <App />
+      <SocialProvider>
+        <App />
+      </SocialProvider>
     </StoreProvider>
   </StrictMode>,
 )

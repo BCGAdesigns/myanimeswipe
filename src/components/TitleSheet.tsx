@@ -1,11 +1,17 @@
-import { ExternalLink, Star, Trash } from 'lucide-react'
-import { useState } from 'react'
+import { ExternalLink, Send, Star, Trash } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { friendsOnTitle, type FriendTake } from '../friends/api'
+import { takeOf } from '../friends/compare'
+import { shortName } from '../friends/feed'
+import { useSocial } from '../friends/social'
 import { genreLabel } from '../genres'
 import { KIND_BADGES } from '../prefs'
 import { useStore } from '../store'
 import type { Entry, Media, SwipeAction } from '../types'
 import { Cover, metaLine } from './MediaCard'
 import { Sheet } from './Sheet'
+import { Avatar, TakeChip } from './social/parts'
+import { RecommendSheet } from './social/RecommendSheet'
 import { ACTION_ICONS, ACTION_LABEL, ACTION_STYLES } from './SwipeDeck'
 
 const SOURCE_NAME = { anilist: 'AniList', tmdb: 'TMDB' } as const
@@ -40,14 +46,31 @@ interface Props {
   media: Media
   /** Origin recorded on new entries. */
   via: Entry['via']
+  /** Friend ticked first when recommending (the sheet was opened from their profile). */
+  recommendTo?: string
   onClose: () => void
 }
 
 /** Everything about one title, and every way to classify it, outside the swipe decks. */
-export function TitleSheet({ media, via, onClose }: Props) {
+export function TitleSheet({ media, via, recommendTo, onClose }: Props) {
   const { entries, classify, rate, removeEntry, toggleFavorite } = useStore()
+  const { me, friends } = useSocial()
   const entry = entries.get(media.id)
   const [more, setMore] = useState(false)
+  const [takes, setTakes] = useState<FriendTake[] | null>(null)
+  const [recommending, setRecommending] = useState(false)
+  const social = Boolean(me) && friends.length > 0
+
+  useEffect(() => {
+    if (!social) return
+    let cancelled = false
+    friendsOnTitle(media.id)
+      .then((list) => !cancelled && setTakes(list))
+      .catch(() => !cancelled && setTakes([]))
+    return () => {
+      cancelled = true
+    }
+  }, [social, media.id])
   const seen = entry?.status === 'seen'
   const actions = seen ? SEEN_ACTIONS : UNSEEN_ACTIONS
   const current = entry ? (entry.rating ?? entry.suggestedRating) : null
@@ -58,6 +81,7 @@ export function TitleSheet({ media, via, onClose }: Props) {
   }
 
   return (
+    <>
     <Sheet title={media.title} onClose={onClose}>
       <div className="title-hero">
         <Cover className="title-cover" src={media.cover} />
@@ -151,6 +175,32 @@ export function TitleSheet({ media, via, onClose }: Props) {
         })}
       </div>
 
+      {social && (
+        <>
+          <h4 className="title-section">Seus amigos</h4>
+          {takes === null ? (
+            <div className="skeleton-line short" aria-label="Carregando" />
+          ) : takes.length > 0 ? (
+            <ul className="friend-takes">
+              {takes.map((t) => (
+                <li key={t.userId}>
+                  <Avatar person={t} size="sm" />
+                  <span>{shortName(t)}</span>
+                  <TakeChip take={takeOf(t)} />
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="small muted">Nenhum amigo classificou este título ainda.</p>
+          )}
+          <div className="row">
+            <button onClick={() => setRecommending(true)}>
+              <Send /> Recomendar para amigos
+            </button>
+          </div>
+        </>
+      )}
+
       {entry && (
         <div className="row center">
           <button className="link-btn danger-link" onClick={() => removeEntry(media.id)}>
@@ -159,5 +209,7 @@ export function TitleSheet({ media, via, onClose }: Props) {
         </div>
       )}
     </Sheet>
+    {recommending && <RecommendSheet media={media} takes={takes ?? []} preselect={recommendTo} onClose={() => setRecommending(false)} />}
+    </>
   )
 }

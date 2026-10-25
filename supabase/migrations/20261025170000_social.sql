@@ -23,6 +23,14 @@ alter table public.usernames
 
 create unique index usernames_invite_code_key on public.usernames (invite_code);
 
+-- People who already made a one-way share code keep it, now as their invite code, with a
+-- username taken from the name they chose (they can change it).
+insert into public.usernames (user_id, username, display_name, invite_code)
+select s.user_id, left(lower(regexp_replace(s.name, '[^a-zA-Z0-9_.]', '', 'g')), 20), s.name, s.code
+from public.shares s
+where char_length(regexp_replace(coalesce(s.name, ''), '[^a-zA-Z0-9_.]', '', 'g')) >= 3
+on conflict do nothing;
+
 create index entries_user_updated_idx on public.entries (user_id, updated_at desc);
 
 -- True when the caller and `other` are accepted friends.
@@ -158,6 +166,33 @@ as $$
     )
     from public.usernames u where u.user_id = friend
   ) end
+$$;
+
+-- What the caller's friends did with one title (skips stay private).
+create function public.friends_on_title(media_key text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'userId', u.user_id,
+    'username', u.username,
+    'displayName', u.display_name,
+    'avatar', u.avatar,
+    'status', e.status,
+    'rating', e.rating,
+    'suggestedRating', e.suggested_rating,
+    'favorite', e.favorite,
+    'updatedAt', e.updated_at
+  ) order by e.updated_at desc), '[]'::jsonb)
+  from public.friendships f
+  join public.entries e
+    on e.user_id = case when f.requester = (select auth.uid()) then f.addressee else f.requester end
+  join public.usernames u on u.user_id = e.user_id
+  where f.status = 'accepted' and (select auth.uid()) in (f.requester, f.addressee)
+    and e.media_id = media_key and not e.deleted and e.status <> 'skip'
 $$;
 
 -- Likes on a friend's activity (one per person, title and friend).
@@ -396,7 +431,8 @@ as $$
   ) order by r.created_at desc), '[]'::jsonb)
   from public.recommendations r
   join public.usernames u on u.user_id = r.to_user
-  left join public.entries e on e.user_id = r.to_user and e.media_id = r.media_id and not e.deleted
+  left join public.entries e
+    on e.user_id = r.to_user and e.media_id = r.media_id and not e.deleted and e.status <> 'skip'
   where r.from_user = (select auth.uid())
 $$;
 
@@ -512,6 +548,7 @@ revoke all on function public.friends_overview() from public, anon;
 revoke all on function public.add_by_invite(text) from public, anon;
 revoke all on function public.regenerate_invite_code() from public, anon;
 revoke all on function public.friend_profile(uuid) from public, anon;
+revoke all on function public.friends_on_title(text) from public, anon;
 revoke all on function public.toggle_like(uuid, text) from public, anon;
 revoke all on function public.friends_feed(bigint, int) from public, anon;
 revoke all on function public.likes_received(int) from public, anon;
@@ -531,6 +568,7 @@ grant execute on function public.friends_overview() to authenticated;
 grant execute on function public.add_by_invite(text) to authenticated;
 grant execute on function public.regenerate_invite_code() to authenticated;
 grant execute on function public.friend_profile(uuid) to authenticated;
+grant execute on function public.friends_on_title(text) to authenticated;
 grant execute on function public.toggle_like(uuid, text) to authenticated;
 grant execute on function public.friends_feed(bigint, int) to authenticated;
 grant execute on function public.likes_received(int) to authenticated;

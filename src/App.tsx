@@ -11,9 +11,8 @@ import {
   Star,
   Users,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { DiscoverTab } from './components/DiscoverTab'
-import { FriendsTab } from './components/FriendsTab'
 import { GestureGuide, guideSeen } from './components/GestureGuide'
 import { ListsTab } from './components/ListsTab'
 import { LogoMark, Wordmark } from './components/Logo'
@@ -23,7 +22,9 @@ import { RateTab } from './components/RateTab'
 import { RecsTab } from './components/RecsTab'
 import { SearchSheet } from './components/SearchSheet'
 import { Settings } from './components/Settings'
-import { myFriends } from './friends/api'
+import { SocialTab, type SocialLink } from './components/social/SocialTab'
+import { inviteCodeFromInput, usernameFromInput } from './friends/api'
+import { useSocial } from './friends/social'
 import { rateQueue } from './logic'
 import { activeFilterCount } from './prefs'
 import { useStore } from './store'
@@ -39,46 +40,69 @@ const TABS: { id: Tab; label: string; Icon: typeof Compass }[] = [
 ]
 
 const params = new URLSearchParams(window.location.search)
-/** An invite link (?amigo=username) opens the Friends tab with that person once. */
-const invitedHandle = params.get('amigo')
-if (invitedHandle) {
+const LINK_KEY = 'watchmatch:pendingLink'
+/** An invite waits this long for the person to sign in and create a profile. */
+const LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000
+
+/**
+ * Invite (?convite=code) and profile (?amigo=username) links. The link is kept on the device
+ * until it is used, because signing in through the e-mail link opens the app again without it.
+ */
+function readSocialLink(): SocialLink | null {
+  const invite = params.get('convite')
+  const profile = params.get('amigo')
+  if (invite === null && profile === null) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LINK_KEY) ?? 'null') as { link: SocialLink; at: number } | null
+      return saved && Date.now() - saved.at < LINK_TTL_MS ? saved.link : null
+    } catch {
+      return null
+    }
+  }
+  params.delete('convite')
   params.delete('amigo')
   const rest = params.toString()
-  window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : ''))
+  // Keep the hash: a sign-in link may carry the session there.
+  window.history.replaceState(null, '', window.location.pathname + (rest ? `?${rest}` : '') + window.location.hash)
+  const code = invite && inviteCodeFromInput(invite)
+  const username = profile && usernameFromInput(profile)
+  const link: SocialLink | null = code ? { kind: 'invite', code } : username ? { kind: 'profile', username } : null
+  try {
+    if (link) localStorage.setItem(LINK_KEY, JSON.stringify({ link, at: Date.now() }))
+  } catch {
+    // Works for this visit anyway.
+  }
+  return link
 }
+
+function forgetSocialLink() {
+  try {
+    localStorage.removeItem(LINK_KEY)
+  } catch {
+    // Nothing saved.
+  }
+}
+
+const openedWith = readSocialLink()
 
 /** Home screen shortcuts open a tab directly (?tab=recs). */
 function initialTab(): Tab {
-  if (invitedHandle) return 'friends'
+  if (openedWith) return 'friends'
   const t = params.get('tab')
   return TABS.some((x) => x.id === t) ? (t as Tab) : 'discover'
 }
 
 export function App() {
   const { ready, prefs, entries, error, cloud } = useStore()
+  const { badge } = useSocial()
   const [tab, setTab] = useState<Tab>(initialTab)
   const [sheet, setSheet] = useState<'settings' | 'prefs' | 'guide' | 'search' | null>(null)
   const [guideDone, setGuideDone] = useState(guideSeen)
-  const [friendHandle, setFriendHandle] = useState(invitedHandle)
-  const [incomingRequests, setIncomingRequests] = useState(0)
-  const clearFriendHandle = useCallback(() => setFriendHandle(null), [])
-
-  // Badge for friend requests waiting for an answer, refreshed when the app comes back.
-  useEffect(() => {
-    if (!cloud.email) {
-      setIncomingRequests(0)
-      return
-    }
-    const check = () => {
-      if (document.visibilityState !== 'visible') return
-      myFriends()
-        .then((rows) => setIncomingRequests(rows.filter((r) => r.state === 'incoming').length))
-        .catch(() => {})
-    }
-    check()
-    document.addEventListener('visibilitychange', check)
-    return () => document.removeEventListener('visibilitychange', check)
-  }, [cloud.email])
+  const [link, setLink] = useState(openedWith)
+  const clearLink = useCallback(() => {
+    setLink(null)
+    forgetSocialLink()
+  }, [])
   const pending = useMemo(() => rateQueue(entries).length, [entries])
   const filters = prefs ? activeFilterCount(prefs) : 0
   const openPrefs = () => setSheet('prefs')
@@ -127,14 +151,7 @@ export function App() {
         {tab === 'rate' && <RateTab />}
         {tab === 'recs' && <RecsTab onOpenPrefs={openPrefs} />}
         {tab === 'lists' && <ListsTab />}
-        {tab === 'friends' && (
-          <FriendsTab
-            initialHandle={friendHandle}
-            onInitialHandled={clearFriendHandle}
-            onOpenSettings={() => setSheet('settings')}
-            onRequestsChanged={setIncomingRequests}
-          />
-        )}
+        {tab === 'friends' && <SocialTab link={link} onLinkHandled={clearLink} onOpenSettings={() => setSheet('settings')} />}
       </main>
 
       <nav className="tabbar">
@@ -148,7 +165,7 @@ export function App() {
             <Icon strokeWidth={tab === id ? 2.4 : 2} />
             {label}
             {id === 'rate' && pending > 0 && <span className="tab-badge">{pending}</span>}
-            {id === 'friends' && incomingRequests > 0 && <span className="tab-badge">{incomingRequests}</span>}
+            {id === 'friends' && badge > 0 && <span className="tab-badge">{badge}</span>}
           </button>
         ))}
       </nav>

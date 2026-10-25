@@ -72,7 +72,7 @@ Bússola de 8 direções (fatias iguais de 45°) mais 2 gestos de toque. Esquerd
 2. **Avaliar**: fila dos "já vi" sem nota confirmada. Grade de 0 a 10 com cor por nota; a nota sugerida aparece destacada. Um toque salva e avança. Swipe para a esquerda pula, para a direita confirma. Lista dos já avaliados, com toque para reavaliar.
 3. **Para você**: recomendações no mesmo baralho e com os mesmos gestos, cada cartão com o motivo ("Porque você favoritou X").
 4. **Listas**: Quero ver, Assistindo, Em pausa, Larguei, Favoritos e Não quero, com ações e desfazer. Tocar num título abre a ficha dele.
-5. **Amigos**: match com amigos (abaixo).
+5. **Amigos**: feed, amigos, indicações e testes de gosto (abaixo).
 
 Na lista de avaliados (aba Avaliar) e nas Listas dá para ordenar por mais recentes, maior nota, menor nota, título, lançamento ou nota da comunidade, e filtrar por tipo (e por favoritos, nos avaliados). A escolha fica salva no aparelho.
 
@@ -82,13 +82,25 @@ Na lista de avaliados (aba Avaliar) e nas Listas dá para ordenar por mais recen
 * Tocar num resultado abre a ficha do título: capa, sinopse, links, situação na sua biblioteca, todas as ações de classificação e, se já viu, a nota de 0 a 10 e o favorito. Registros feitos assim levam `via = 'search'`.
 * As últimas 6 buscas ficam salvas no aparelho.
 
-## Match com amigos
+## Amigos (camada social)
 
-* Quem tem conta cria um **código de amigo** (10 letras e números, sem caracteres que se confundem) e manda o link `?amigo=CÓDIGO` ou o código. Pode escolher um nome para aparecer e parar de compartilhar quando quiser (o código deixa de funcionar).
-* Qualquer pessoa, mesmo sem conta, compara a própria lista com a de quem compartilhou: compatibilidade de gosto, "Vocês dois querem ver", "Fulano recomenda para você", "Os dois amaram", "Você recomenda para Fulano" e "Vocês discordam". Tocar num pôster abre a ficha para classificar.
-* Compatibilidade: com 3 ou mais títulos avaliados pelos dois, 100 menos 10 vezes a diferença média das notas; senão, a proporção de concordância entre os sinais fortes (gostei ou não gostei) dos dois, também com no mínimo 3. **ASSUMPTION**: fórmula simples, escolhida por ser fácil de explicar.
-* Servidor: tabela `shares` (código e nome, só o dono mexe) e a função `shared_list(código)`, que devolve as listas de quem compartilha (sem pulados, sem e-mail, sem sinopse). Segurar o código é a permissão, por isso a função roda com privilégio do banco e aceita chamadas sem login; o alerta do Supabase sobre isso é esperado.
-* Amigos comparados ficam salvos no aparelho, com a última compatibilidade.
+Quem tem conta cria um **perfil**: @usuário (3 a 20 letras sem acento, números, `_` ou ponto; sugerido a partir do e-mail), nome para mostrar, foto (um emoji ou a inicial) e bio de até 160 caracteres. O e-mail nunca aparece. A aba tem quatro seções, com contador do que espera a pessoa:
+
+* **Feed**: o que os amigos fizeram, do mais recente para o mais antigo (deu nota, favoritou, quer ver, está assistindo, pausou, largou), 40 por página. Cada item tem curtida (a pessoa vê quem curtiu em "Curtidas recentes") e, se o título não está na sua biblioteca, um atalho "Quero ver". Pulados e "Não quero" nunca entram no feed.
+* **Amigos**: seu cartão, o **código de convite** (10 letras e números sem caracteres que se confundem) e o link `?convite=CÓDIGO`; quem usa o código vira amigo na hora, porque o código foi entregue de propósito. Dá para trocar o código (o antigo para de funcionar). Também dá para buscar pelo começo do @usuário e mandar pedido (vira amizade quando o outro aceita; se os dois pedirem, vira na hora). A lista de amigos vem ordenada pela compatibilidade. O link `?amigo=usuario` abre a pessoa para adicionar. Convites recebidos ficam guardados no aparelho por até 7 dias, até a pessoa entrar e criar o perfil.
+* **Indicações**: recomendações enviadas de propósito, com mensagem opcional (até 280 caracteres), a partir da ficha de qualquer título ("Recomendar para amigos", vários amigos de uma vez). Quem recebe pode curtir, pôr em Quero ver ou dispensar. Quem envia acompanha o que aconteceu: ainda não viu, viu a indicação, curtiu, colocou na lista Quero ver, está assistindo, viu e deu nota X, favoritou, largou, não quis ou dispensou.
+* **Testes de gosto**: o app escolhe até 8 títulos que pelo menos um dos dois já viu (um terço que os dois viram, um terço só do amigo, o resto só seu, puxando opiniões fortes). Cada um responde o que achou (amei, gostei, mais ou menos, não gostei, não vi) e um palpite do que o outro achou. As respostas são finais e só aparecem para o outro quando os dois terminam. Resultado: gosto parecido (média de `1 − distância ÷ 3` na escala de 4 níveis, nos títulos que os dois viram) e quantos palpites cada um acertou.
+
+**Perfil do amigo**: cartão, números (vistos, nota média, favoritos, quer ver), compatibilidade e três vistas:
+* **Em comum**: "Vocês dois querem ver", "Assistindo ao mesmo tempo", "Fulano recomenda para você" (o que ele avaliou com 7 ou mais, favoritou ou está assistindo e você não viu, ordenado por quanto ele gostou vezes quanto combina com os seus gêneros), "Você recomenda para Fulano" (o mesmo no sentido contrário, com os gêneros dele), "Na lista de Fulano, e você já viu", "Os dois amaram", "Onde vocês discordam" (notas 4 ou mais pontos distantes, ou sinais opostos) e **Notas lado a lado**, com todos os títulos em comum e a nota de cada um, ordenável por mais parecidas, mais diferentes, sua maior nota, maior nota dele ou mais recentes.
+* **Lista**: notas, favoritos, quero ver, assistindo ou tudo.
+* **Atividade**: as últimas mudanças dele.
+
+**Compatibilidade**: cada título que os dois avaliaram vale `max(0, 1 − diferença ÷ 4)` (mesma nota 100%, 1 ponto 75%, 2 pontos 50%, 4 ou mais 0%). Títulos sem as duas notas mas com opinião forte dos dois lados (favorito, largou, gostei) valem meio título: 1 se concordam, 0 se não. O resultado é puxado para 50% com peso de 2 títulos, para não exagerar com pouca coisa em comum: `(soma + 1) ÷ (títulos + 2)`. Abaixo de 2 títulos de evidência aparece "?". **ESTIMATIVA**: a escala de 4 pontos e o peso de 2 títulos foram escolhidos à mão.
+
+Na ficha de qualquer título aparece **Seus amigos**, com o que cada amigo fez com ele.
+
+Servidor (`supabase/migrations/20261025150000_usernames_and_friendships.sql` e `20261025170000_social.sql`): tabelas `usernames` (perfil e código de convite; cada um só lê o próprio), `friendships`, `reactions` (curtidas), `recommendations` e `taste_tests` (sem leitura direta). Tudo sobre outras pessoas passa por funções com privilégio do banco que conferem a amizade antes (`friend_profile`, `friends_feed`, `friends_on_title`, `toggle_like`, `recommend`, `sent_recommendations`, `my_taste_tests` e outras); ninguém sem login chama essas funções. Ao desfazer a amizade, o acesso some na hora para os dois lados. Excluir a conta apaga tudo em cascata.
 
 ## Recomendações (fase 2, sem IA)
 
@@ -119,5 +131,6 @@ Motor local, custo zero (`src/recs/engine.ts`):
 * **Fase 2** (feito): aba Para você com motor híbrido.
 * **Fase 2.5** (feito): nome WatchMatch, filmes, séries e desenhos via TMDB, primeira tela, preferências e filtros PRO, visual novo, termos e privacidade, excluir conta.
 * **Fase 2.6** (feito): busca, ficha do título, ordenação e filtros nos avaliados e nas listas, match com amigos por código, login também por código de 6 dígitos.
+* **Fase 2.7** (feito): camada social com perfil, convites, amizade mútua, feed com curtidas, indicações com acompanhamento, testes de gosto e compatibilidade pelas notas.
 * **Fase 3**: IA reordenando e explicando.
 * **Futuro**: cobrança dos filtros PRO, SMTP próprio para abrir o login a qualquer pessoa.
