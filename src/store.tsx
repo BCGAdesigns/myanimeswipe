@@ -32,6 +32,7 @@ interface Store {
   skipRating: (mediaId: string) => void
   /** Deletes the record so the card returns to the deck as unseen. */
   removeEntry: (mediaId: string) => void
+  toggleFavorite: (mediaId: string) => void
   undo: () => string | null
   loadMore: () => Promise<void>
   exportData: () => ExportFile
@@ -136,6 +137,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       const prev = entriesRef.current.get(mediaId)
       if (!prev) return
       writeEntry({ ...prev, queuedAt: Date.now() }, prev)
+    },
+    [writeEntry],
+  )
+
+  const toggleFavorite = useCallback<Store['toggleFavorite']>(
+    (mediaId) => {
+      const prev = entriesRef.current.get(mediaId)
+      if (!prev) return
+      writeEntry({ ...prev, favorite: !prev.favorite, updatedAt: Date.now() }, prev)
     },
     [writeEntry],
   )
@@ -266,6 +276,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         rate,
         skipRating,
         removeEntry,
+        toggleFavorite,
         undo,
         loadMore,
         exportData,

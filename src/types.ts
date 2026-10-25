@@ -24,10 +24,21 @@ export interface Media {
   links: { site?: string; mal?: string; crunchyroll?: string }
 }
 
-/** The six swipe actions, same meaning on every swipe tab. */
-export type SwipeAction = 'want' | 'reject' | 'skip' | 'seen' | 'liked' | 'disliked'
+/** Eight compass swipes plus double tap (liked) and long press (favorite), same on every swipe tab. */
+export type SwipeAction =
+  | 'want'
+  | 'reject'
+  | 'skip'
+  | 'seen'
+  | 'liked'
+  | 'disliked'
+  | 'watching'
+  | 'paused'
+  | 'dropped'
+  | 'favorite'
 
-export type EntryStatus = 'want' | 'reject' | 'skip' | 'seen'
+/** Mirrors MyAnimeList: want = plan to watch, paused = on hold; reject and skip are our own. */
+export type EntryStatus = 'want' | 'reject' | 'skip' | 'seen' | 'watching' | 'paused' | 'dropped'
 
 export interface Entry {
   mediaId: string
@@ -41,6 +52,7 @@ export interface Entry {
   /** Order key for skipped cards; they return after the unseen ones. */
   skippedAt?: number
   via: 'discover' | 'recs'
+  favorite?: boolean
   updatedAt: number
   /** Time of the last local change (ms); last write wins when syncing. Absent on pre-sync records. */
   rev?: number

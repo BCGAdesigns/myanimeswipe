@@ -1,4 +1,4 @@
-import { useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, type ReactNode, type Ref } from 'react'
 import { SWIPE_THRESHOLD } from '../logic'
 
 export interface SwipeCardHandle<T extends string> {
@@ -17,17 +17,44 @@ interface Props<T extends string> {
   styles: Record<T, ActionStyle>
   onAction: (action: T) => void
   onTap?: () => void
+  /** When set, a single tap waits DOUBLE_TAP_MS to tell it apart from a double tap. */
+  onDoubleTap?: () => void
+  onLongPress?: () => void
   children: ReactNode
   ref?: Ref<SwipeCardHandle<T>>
 }
 
 const FLING_MS = 220
+const DOUBLE_TAP_MS = 250
+const LONG_PRESS_MS = 500
+/** Finger travel that still counts as holding still (long press) or tapping. */
+const STILL_PX = 10
 
-export function SwipeCard<T extends string>({ classify, styles, onAction, onTap, children, ref }: Props<T>) {
+export function SwipeCard<T extends string>({
+  classify,
+  styles,
+  onAction,
+  onTap,
+  onDoubleTap,
+  onLongPress,
+  children,
+  ref,
+}: Props<T>) {
   const [pos, setPos] = useState({ x: 0, y: 0 })
   const [dragging, setDragging] = useState(false)
   const [leaving, setLeaving] = useState<T | null>(null)
   const start = useRef<{ x: number; y: number; t: number; id: number } | null>(null)
+  const lastTap = useRef(0)
+  const tapTimer = useRef<number | undefined>(undefined)
+  const pressTimer = useRef<number | undefined>(undefined)
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(tapTimer.current)
+      window.clearTimeout(pressTimer.current)
+    },
+    [],
+  )
 
   const fling = (action: T) => {
     if (leaving) return
@@ -45,15 +72,41 @@ export function SwipeCard<T extends string>({ classify, styles, onAction, onTap,
     e.currentTarget.setPointerCapture(e.pointerId)
     start.current = { x: e.clientX, y: e.clientY, t: performance.now(), id: e.pointerId }
     setDragging(true)
+    if (onLongPress) {
+      pressTimer.current = window.setTimeout(() => {
+        // The press is consumed here; the coming pointerup must not count as a tap or swipe.
+        start.current = null
+        setDragging(false)
+        navigator.vibrate?.(30)
+        onLongPress()
+      }, LONG_PRESS_MS)
+    }
   }
 
   const onPointerMove = (e: React.PointerEvent) => {
     const s = start.current
     if (!s || s.id !== e.pointerId) return
-    setPos({ x: e.clientX - s.x, y: e.clientY - s.y })
+    const dx = e.clientX - s.x
+    const dy = e.clientY - s.y
+    if (Math.hypot(dx, dy) > STILL_PX) window.clearTimeout(pressTimer.current)
+    setPos({ x: dx, y: dy })
+  }
+
+  const tap = () => {
+    const now = performance.now()
+    if (onDoubleTap && now - lastTap.current < DOUBLE_TAP_MS) {
+      window.clearTimeout(tapTimer.current)
+      lastTap.current = 0
+      onDoubleTap()
+      return
+    }
+    lastTap.current = now
+    if (onDoubleTap) tapTimer.current = window.setTimeout(() => onTap?.(), DOUBLE_TAP_MS)
+    else onTap?.()
   }
 
   const onPointerUp = (e: React.PointerEvent) => {
+    window.clearTimeout(pressTimer.current)
     const s = start.current
     if (!s || s.id !== e.pointerId) return
     start.current = null
@@ -61,9 +114,9 @@ export function SwipeCard<T extends string>({ classify, styles, onAction, onTap,
     const dx = e.clientX - s.x
     const dy = e.clientY - s.y
     const dist = Math.hypot(dx, dy)
-    if (dist < 6) {
+    if (dist < STILL_PX) {
       setPos({ x: 0, y: 0 })
-      onTap?.()
+      tap()
       return
     }
     // A quick flick counts even when it is shorter than the threshold.
@@ -74,6 +127,7 @@ export function SwipeCard<T extends string>({ classify, styles, onAction, onTap,
   }
 
   const onPointerCancel = () => {
+    window.clearTimeout(pressTimer.current)
     start.current = null
     setDragging(false)
     setPos({ x: 0, y: 0 })
@@ -94,6 +148,8 @@ export function SwipeCard<T extends string>({ classify, styles, onAction, onTap,
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
+      // Long press must not open the browser's context menu.
+      onContextMenu={(e) => e.preventDefault()}
     >
       {children}
       {style && (

@@ -7,11 +7,15 @@ import { SwipeCard, type ActionStyle, type SwipeCardHandle } from './SwipeCard'
 
 export const ACTION_STYLES: Record<SwipeAction, ActionStyle & { icon: string }> = {
   want: { text: 'QUERO VER', color: '#3b82f6', vector: [0, -1], icon: '↑' },
-  reject: { text: 'NÃO QUERO', color: '#ef4444', vector: [0, 1], icon: '↓' },
-  skip: { text: 'PULAR', color: '#9ca3af', vector: [-1, 0], icon: '←' },
+  watching: { text: 'ASSISTINDO', color: '#14b8a6', vector: [0.71, -0.71], icon: '↗' },
   seen: { text: 'JÁ VI', color: '#a78bfa', vector: [1, 0], icon: '→' },
-  liked: { text: 'GOSTEI', color: '#22c55e', vector: [0.71, -0.71], icon: '↗' },
   disliked: { text: 'NÃO GOSTEI', color: '#f97316', vector: [0.71, 0.71], icon: '↘' },
+  reject: { text: 'NÃO QUERO', color: '#ef4444', vector: [0, 1], icon: '↓' },
+  dropped: { text: 'LARGUEI', color: '#fb7185', vector: [-0.71, 0.71], icon: '↙' },
+  skip: { text: 'PULAR', color: '#9ca3af', vector: [-1, 0], icon: '←' },
+  paused: { text: 'EM PAUSA', color: '#38bdf8', vector: [-0.71, -0.71], icon: '↖' },
+  liked: { text: 'GOSTEI ♥', color: '#22c55e', vector: [0.5, -0.87], icon: '♥' },
+  favorite: { text: 'FAVORITO ⭐', color: '#facc15', vector: [0, -1], icon: '⭐' },
 }
 
 const KEYS: Record<string, SwipeAction> = {
@@ -19,12 +23,21 @@ const KEYS: Record<string, SwipeAction> = {
   ArrowDown: 'reject',
   ArrowLeft: 'skip',
   ArrowRight: 'seen',
-  g: 'liked',
+  a: 'watching',
+  p: 'paused',
+  l: 'dropped',
   n: 'disliked',
+  g: 'liked',
+  f: 'favorite',
 }
 
-// 3x3 pad that mirrors the gesture directions; null cells stay empty.
-const PAD: (SwipeAction | 'undo' | 'hide' | null)[] = [null, 'want', 'liked', 'skip', 'undo', 'seen', 'hide', 'reject', 'disliked']
+// Pad that mirrors the compass, plus a row for the two touch gestures.
+const PAD: (SwipeAction | 'undo' | 'hide')[] = [
+  'paused', 'want', 'watching',
+  'skip', 'undo', 'seen',
+  'dropped', 'reject', 'disliked',
+  'liked', 'favorite', 'hide',
+]
 
 // Per-device UI preference; storage can be unavailable (private mode), so default to visible.
 const PAD_KEY = 'myanimeswipe:showPad'
@@ -52,6 +65,10 @@ const BUTTON_LABEL: Record<SwipeAction, string> = {
   seen: 'Já vi',
   liked: 'Gostei',
   disliked: 'Não gostei',
+  watching: 'Assistindo',
+  paused: 'Em pausa',
+  dropped: 'Larguei',
+  favorite: 'Favorito',
 }
 
 interface Props {
@@ -118,6 +135,8 @@ export function SwipeDeck({ ids, via, empty }: Props) {
             styles={ACTION_STYLES}
             onAction={(a) => swipe(top.id, a, via)}
             onTap={() => setDetails((d) => !d)}
+            onDoubleTap={() => cardRef.current?.fling('liked')}
+            onLongPress={() => cardRef.current?.fling('favorite')}
           >
             <MediaCard media={top} showDetails={details} />
           </SwipeCard>
@@ -129,7 +148,6 @@ export function SwipeDeck({ ids, via, empty }: Props) {
       {showPad ? (
         <div className="pad">
           {PAD.map((cell, i) => {
-            if (cell === null) return <span key={i} />
             if (cell === 'hide') {
               return (
                 <button key={i} className="pad-btn undo" onClick={togglePad}>

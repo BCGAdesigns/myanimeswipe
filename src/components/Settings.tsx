@@ -7,8 +7,11 @@ export function Settings({ onClose }: { onClose: () => void }) {
   const [message, setMessage] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const counts = { want: 0, reject: 0, skip: 0, seen: 0 }
-  for (const e of entries.values()) counts[e.status]++
+  const counts = { want: 0, reject: 0, skip: 0, seen: 0, watching: 0, paused: 0, dropped: 0, favorite: 0 }
+  for (const e of entries.values()) {
+    counts[e.status]++
+    if (e.favorite) counts.favorite++
+  }
 
   const doExport = () => {
     const blob = new Blob([JSON.stringify(exportData(), null, 2)], { type: 'application/json' })
@@ -43,7 +46,8 @@ export function Settings({ onClose }: { onClose: () => void }) {
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <h2>Configurações</h2>
         <p className="stats">
-          Já vi {counts.seen} · Quero ver {counts.want} · Não quero {counts.reject} · Pulados {counts.skip}
+          Já vi {counts.seen} · Favoritos {counts.favorite} · Assistindo {counts.watching} · Em pausa {counts.paused} ·
+          Larguei {counts.dropped} · Quero ver {counts.want} · Não quero {counts.reject} · Pulados {counts.skip}
         </p>
 
         <CloudSection />
@@ -71,14 +75,19 @@ export function Settings({ onClose }: { onClose: () => void }) {
         </div>
 
         <h3>Gestos</h3>
+        <p>Esquerda: parado ou fora. Direita: em andamento ou terminado. Cima: positivo. Baixo: negativo.</p>
         <ul className="gesture-help">
           <li>↑ Quero ver</li>
-          <li>↓ Não quero (não recomendar)</li>
-          <li>← Pular (volta depois)</li>
+          <li>↗ Assistindo</li>
           <li>→ Já vi</li>
-          <li>↗ Já vi e gostei (nota 8 sugerida)</li>
           <li>↘ Já vi e não gostei (nota 3 sugerida)</li>
-          <li>Teclado: setas, G gostei, N não gostei, Z desfazer</li>
+          <li>↓ Não quero (não recomendar)</li>
+          <li>↙ Larguei</li>
+          <li>← Pular (volta depois)</li>
+          <li>↖ Em pausa</li>
+          <li>2 toques: gostei (nota 8 sugerida)</li>
+          <li>Segurar: favorito (nota 10 sugerida)</li>
+          <li>Teclado: setas, A assistindo, P pausa, L larguei, N não gostei, G gostei, F favorito, Z desfazer</li>
         </ul>
 
         <h3>Zona de perigo</h3>

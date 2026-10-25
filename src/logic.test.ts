@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyAction, buildDeck, classifyRateSwipe, classifySwipe, rateQueue, statusList } from './logic'
+import { applyAction, buildDeck, classifyRateSwipe, classifySwipe, favoriteList, rateQueue, statusList } from './logic'
 import { cleanSynopsis, toMedia } from './sources/anilist'
 import type { Entry } from './types'
 
@@ -10,18 +10,27 @@ const at = (deg: number, dist = 200): [number, number] => {
 }
 
 describe('classifySwipe', () => {
-  it('maps the six directions', () => {
+  it('maps the eight compass directions', () => {
     expect(classifySwipe(...at(0))).toBe('seen')
-    expect(classifySwipe(...at(45))).toBe('liked')
-    expect(classifySwipe(...at(-45))).toBe('disliked')
+    expect(classifySwipe(...at(45))).toBe('watching')
     expect(classifySwipe(...at(90))).toBe('want')
-    expect(classifySwipe(...at(-90))).toBe('reject')
+    expect(classifySwipe(...at(135))).toBe('paused')
     expect(classifySwipe(...at(180))).toBe('skip')
+    expect(classifySwipe(...at(-135))).toBe('dropped')
+    expect(classifySwipe(...at(-90))).toBe('reject')
+    expect(classifySwipe(...at(-45))).toBe('disliked')
   })
 
-  it('treats the left diagonals as skip', () => {
-    expect(classifySwipe(...at(150))).toBe('skip')
-    expect(classifySwipe(...at(-150))).toBe('skip')
+  it('gives every direction an equal 45° slice', () => {
+    expect(classifySwipe(...at(20))).toBe('seen')
+    expect(classifySwipe(...at(25))).toBe('watching')
+    expect(classifySwipe(...at(110))).toBe('want')
+    expect(classifySwipe(...at(115))).toBe('paused')
+    expect(classifySwipe(...at(160))).toBe('skip')
+    expect(classifySwipe(...at(-160))).toBe('skip')
+    expect(classifySwipe(...at(-155))).toBe('dropped')
+    expect(classifySwipe(...at(-70))).toBe('reject')
+    expect(classifySwipe(...at(-25))).toBe('disliked')
   })
 
   it('ignores short drags', () => {
@@ -44,6 +53,23 @@ describe('applyAction', () => {
     expect(liked).toMatchObject({ status: 'seen', rating: null, suggestedRating: 8, queuedAt: 1 })
     expect(applyAction('a', 'disliked', 'recs', 1)).toMatchObject({ status: 'seen', suggestedRating: 3 })
     expect(applyAction('a', 'seen', 'discover', 1)).toMatchObject({ status: 'seen', suggestedRating: null })
+  })
+
+  it('marks favorites as seen with 10 suggested', () => {
+    expect(applyAction('a', 'favorite', 'discover', 1)).toMatchObject({
+      status: 'seen',
+      suggestedRating: 10,
+      favorite: true,
+      queuedAt: 1,
+    })
+  })
+
+  it('keeps watching, paused and dropped out of the rating queue', () => {
+    for (const action of ['watching', 'paused', 'dropped'] as const) {
+      const e = applyAction('a', action, 'discover', 1)
+      expect(e).toMatchObject({ status: action, suggestedRating: null })
+      expect(rateQueue(new Map([['a', e]]))).toEqual([])
+    }
   })
 })
 
@@ -79,6 +105,15 @@ describe('statusList', () => {
     ])
     expect(statusList(entries, 'want').map((e) => e.mediaId)).toEqual(['c', 'a'])
     expect(statusList(entries, 'reject').map((e) => e.mediaId)).toEqual(['b'])
+  })
+
+  it('lists favorites regardless of status', () => {
+    const entries = new Map<string, Entry>([
+      ['a', applyAction('a', 'favorite', 'discover', 1)],
+      ['b', { ...applyAction('b', 'favorite', 'discover', 2), rating: 9 }],
+      ['c', applyAction('c', 'liked', 'discover', 3)],
+    ])
+    expect(favoriteList(entries).map((e) => e.mediaId)).toEqual(['b', 'a'])
   })
 })
 

@@ -60,7 +60,9 @@ export function MediaCard({ media, showDetails }: { media: Media; showDetails: b
             ))}
           </div>
         )}
-        <p className="hint">{showDetails ? 'Toque para fechar' : 'Toque para ver a sinopse'}</p>
+        <p className="hint">
+          {showDetails ? 'Toque para fechar' : 'Toque: sinopse · 2 toques: gostei · segurar: favorito'}
+        </p>
       </div>
     </div>
   )

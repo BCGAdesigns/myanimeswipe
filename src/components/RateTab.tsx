@@ -69,7 +69,10 @@ export function RateTab() {
                 <div className="rate-card">
                   <img src={currentMedia.cover} alt="" draggable={false} />
                   <div>
-                    <h2>{currentMedia.title}</h2>
+                    <h2>
+                      {current.favorite && '⭐ '}
+                      {currentMedia.title}
+                    </h2>
                     <p className="meta">{metaLine(currentMedia)}</p>
                     {highlighted !== null && (
                       <p className="suggested">
@@ -116,7 +119,10 @@ export function RateTab() {
                 <li key={e.mediaId}>
                   <button onClick={() => startEdit(e.mediaId)}>
                     <img src={m.cover} alt="" loading="lazy" />
-                    <span className="rated-title">{m.title}</span>
+                    <span className="rated-title">
+                      {e.favorite && '⭐ '}
+                      {m.title}
+                    </span>
                     <span className="rated-score">{e.rating}</span>
                   </button>
                 </li>

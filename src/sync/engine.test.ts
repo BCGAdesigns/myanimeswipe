@@ -120,6 +120,13 @@ describe('toRow / toChange', () => {
     expect(toChange(row)).toEqual({ mediaId: 'anilist:1', rev: 100, entry: e, media: media('anilist:1') })
   })
 
+  it('carries the favorite flag both ways', () => {
+    const fav = entry('anilist:5', 'favorite', 300)
+    const row = toRow(USER, { mediaId: fav.mediaId, rev: 300 }, fav, undefined)
+    expect(row.favorite).toBe(true)
+    expect(toChange(row).entry).toEqual(fav)
+  })
+
   it('turns a missing entry into a tombstone', () => {
     const row = toRow(USER, { mediaId: 'anilist:2', rev: 50 }, undefined, undefined)
     expect(row).toMatchObject({ deleted: true, rev: 50, media: null })

@@ -37,27 +37,32 @@ App estilo Tinder para catalogar animes: marcar o que já viu, o que quer ver e 
 
 ## Gestos (iguais em todas as abas de swipe)
 
-Lado direito é sempre "já vi", eixo vertical é sempre interesse.
+Bússola de 8 direções (fatias iguais de 45°) mais 2 gestos de toque. Esquerda = parado ou fora, direita = em andamento ou terminado; cima = positivo, baixo = negativo. Os status seguem o MyAnimeList (Plan to Watch, Watching, Completed, On-Hold, Dropped), mais "não quero" e "pular".
 
 | Gesto | Ação | Efeito |
 |---|---|---|
-| Cima | Quero ver | Vai para a lista "quero ver", sinal positivo |
-| Baixo | Não quero | Nunca mais aparece, sinal negativo para recomendações |
-| Esquerda | Pular | Neutro, volta a aparecer depois dos inéditos |
-| Direita | Já vi | Vai para a fila de nota, sem nota sugerida |
-| Diagonal cima-direita | Já vi e gostei | Fila de nota com 8 sugerido |
-| Diagonal baixo-direita | Já vi e não gostei | Fila de nota com 3 sugerido |
+| ↑ Cima | Quero ver | Lista "Quero ver", sinal positivo |
+| ↗ Cima-direita | Assistindo | Lista "Assistindo" |
+| → Direita | Já vi | Fila de nota, sem nota sugerida |
+| ↘ Baixo-direita | Já vi e não gostei | Fila de nota com 3 sugerido |
+| ↓ Baixo | Não quero | Nunca mais aparece, sinal negativo para recomendações |
+| ↙ Baixo-esquerda | Larguei | Lista "Larguei", fora da fila de nota **ASSUMPTION** |
+| ← Esquerda | Pular | Neutro, volta a aparecer depois dos inéditos |
+| ↖ Cima-esquerda | Em pausa | Lista "Em pausa" |
+| 2 toques | Gostei | Fila de nota com 8 sugerido |
+| Segurar (0,5 s) | Favorito | Já vi + favorito, fila de nota com 10 sugerido, lista "Favoritos" **ASSUMPTION** |
 
-* O rótulo da ação aparece enquanto arrasta; só confirma ao soltar.
+* Toque simples abre a sinopse (espera 0,25 s para não confundir com 2 toques).
+* O rótulo da ação aparece enquanto arrasta; só confirma ao soltar. Segurar vibra ao marcar favorito.
 * Botão Desfazer sempre visível.
-* Botões equivalentes abaixo do card e atalhos de teclado (setas, `G` gostei, `N` não gostei, `Z` desfazer). Os botões podem ser ocultados (modo só gestos, preferência salva por aparelho); nesse modo o Desfazer continua visível.
+* Botões equivalentes abaixo do card (o pad espelha a bússola, com uma linha extra para Gostei e Favorito) e atalhos de teclado: setas, `A` assistindo, `P` pausa, `L` larguei, `N` não gostei, `G` gostei, `F` favorito, `Z` desfazer. Os botões podem ser ocultados (modo só gestos, preferência salva por aparelho); nesse modo o Desfazer continua visível.
 
 ## Abas
 
-1. **Descobrir**: baralho do catálogo com os 6 gestos.
-2. **Avaliar**: fila dos "já vi" sem nota confirmada. Grade de toque com 11 botões (0 a 10, inteiros), a nota sugerida aparece destacada. Um toque salva e avança. Swipe para a esquerda pula (vai para o fim da fila), para a direita confirma a nota destacada. Lista dos já avaliados, com toque para reavaliar.
-3. **Para você**: recomendações no mesmo baralho e com os mesmos 6 gestos. Fase 2.
-4. **Listas**: "Quero ver" (marcar como já vi, que manda para a fila de nota, ou remover) e "Não quero" (restaurar, que devolve o anime ao baralho, ou mover para quero ver). Tudo com desfazer.
+1. **Descobrir**: baralho do catálogo com a bússola de gestos.
+2. **Avaliar**: fila dos "já vi" sem nota confirmada. Grade de toque com 11 botões (0 a 10, inteiros), a nota sugerida aparece destacada. Um toque salva e avança. Swipe para a esquerda pula (vai para o fim da fila), para a direita confirma a nota destacada. Lista dos já avaliados, com toque para reavaliar. Favoritos aparecem com ⭐.
+3. **Para você**: recomendações no mesmo baralho e com os mesmos gestos. Fase 2.
+4. **Listas**: Quero ver (Comecei, Já vi, Remover), Assistindo (Terminei, Pausar, Larguei), Em pausa (Retomar, Larguei, Remover), Larguei (Retomar, Remover), Favoritos (Tirar dos favoritos) e Não quero (Restaurar, Quero ver). Tudo com desfazer.
 
 ## Recomendações (fase 2)
 
@@ -75,6 +80,7 @@ Motor híbrido, local, custo zero:
 
 * **Fase 1**: PWA, catálogo AniList, 6 gestos, aba Avaliar, aba Listas, persistência local, exportar/importar, deploy na Vercel.
 * **Fase 1.5**: conta por link no e-mail e sincronização entre aparelhos (Supabase).
+* **Fase 1.6**: bússola de 8 gestos + 2 toques e segurar; status no padrão MyAnimeList (assistindo, em pausa, larguei) e favoritos.
 * **Fase 2**: aba Para você com motor híbrido.
 * **Fase 3**: IA reordenando e explicando.
 * **Futuro**: séries e animação ocidental via TMDB.

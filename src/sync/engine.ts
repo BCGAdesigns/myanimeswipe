@@ -10,6 +10,7 @@ export interface RemoteRow {
   queued_at: number | null
   skipped_at: number | null
   via: Entry['via']
+  favorite: boolean
   updated_at: number
   rev: number
   deleted: boolean
@@ -80,6 +81,7 @@ export function toRow(userId: string, item: OutboxItem, entry: Entry | undefined
       queued_at: null,
       skipped_at: null,
       via: 'discover',
+      favorite: false,
       updated_at: item.rev,
       rev: item.rev,
       deleted: true,
@@ -95,6 +97,7 @@ export function toRow(userId: string, item: OutboxItem, entry: Entry | undefined
     queued_at: entry.queuedAt ?? null,
     skipped_at: entry.skippedAt ?? null,
     via: entry.via,
+    favorite: entry.favorite ?? false,
     updated_at: entry.updatedAt,
     rev: revOf(entry),
     deleted: false,
@@ -114,6 +117,7 @@ export function fromRow(row: RemoteRow): Entry {
   }
   if (row.queued_at != null) entry.queuedAt = Number(row.queued_at)
   if (row.skipped_at != null) entry.skippedAt = Number(row.skipped_at)
+  if (row.favorite) entry.favorite = true
   return entry
 }
 

@@ -136,6 +136,8 @@ nav .count {
   inset: 0;
   touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   cursor: grab;
   will-change: transform;
 }
@@ -508,24 +510,6 @@ nav .count {
 
 /* Lists tab */
 
-.segmented {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 6px;
-  margin: 4px 0 12px;
-}
-
-.segmented button {
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.segmented button.active {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
 .media-list {
   list-style: none;
   margin: 0;
@@ -615,5 +599,41 @@ nav .count {
 }
 
 .cloud strong {
+  color: var(--text);
+}
+
+/* Lists tab: scrollable status chips */
+
+.list-bar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 4px 0 12px;
+}
+
+.chips {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chips button {
+  flex: none;
+  white-space: nowrap;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 8px 12px;
+}
+
+.chips button.active {
+  background: var(--surface-2);
   color: var(--text);
 }
