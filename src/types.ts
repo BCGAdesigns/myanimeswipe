@@ -48,7 +48,7 @@ export type EntryStatus = 'want' | 'reject' | 'skip' | 'seen' | 'watching' | 'pa
 export interface Entry {
   mediaId: string
   status: EntryStatus
-  /** Confirmed rating 0 to 10. Null while waiting in the rating queue. */
+  /** Confirmed rating, stored 0 to 10 and shown 1 to 8 (src/rating.ts). Null while waiting in the rating queue. */
   rating: number | null
   /** Pre-highlighted rating (8 liked, 3 disliked, null plain seen). */
   suggestedRating: number | null
