@@ -26,14 +26,14 @@ const RATE_STYLES = {
 
 /** Each number sits around the card where its drag goes. */
 const DIAL: { stars: number; area: string; arrow: string }[] = [
-  { stars: 6, area: 'nw', arrow: '↖' },
+  { stars: 1, area: 'nw', arrow: '↖' },
   { stars: 8, area: 'n', arrow: '↑' },
   { stars: 7, area: 'ne', arrow: '↗' },
-  { stars: 4, area: 'w', arrow: '←' },
-  { stars: 5, area: 'e', arrow: '→' },
-  { stars: 2, area: 'sw', arrow: '↙' },
-  { stars: 1, area: 's', arrow: '↓' },
-  { stars: 3, area: 'se', arrow: '↘' },
+  { stars: 2, area: 'w', arrow: '←' },
+  { stars: 6, area: 'e', arrow: '→' },
+  { stars: 3, area: 'sw', arrow: '↙' },
+  { stars: 4, area: 's', arrow: '↓' },
+  { stars: 5, area: 'se', arrow: '↘' },
 ]
 
 const keyOf = (stars: number) => String(stars) as RateKey

@@ -39,17 +39,11 @@ describe('classifySwipe', () => {
 })
 
 describe('classifyRateSwipe', () => {
-  it('gives 1 to 8 by direction: higher is better, right beats left at the same height', () => {
-    const byAngle = [90, 45, 135, 0, 180, -45, -135, -90].map((deg) => classifyRateSwipe(...at(deg)))
-    expect(byAngle).toEqual([8, 7, 6, 5, 4, 3, 2, 1])
+  it('gives 8 straight up and one less at each step clockwise', () => {
+    const clockwise = [90, 45, 0, -45, -90, -135, 180, 135].map((deg) => classifyRateSwipe(...at(deg)))
+    expect(clockwise).toEqual([8, 7, 6, 5, 4, 3, 2, 1])
     expect(classifyRateSwipe(...at(100))).toBe(8)
     expect(classifyRateSwipe(...at(90, 40))).toBeNull()
-  })
-
-  it('keeps neighbouring directions at most 2 apart', () => {
-    const around = [0, 45, 90, 135, 180, 225, 270, 315].map((deg) => classifyRateSwipe(...at(deg))!)
-    const gaps = around.map((n, i) => Math.abs(n - around[(i + 1) % 8]))
-    expect(Math.max(...gaps)).toBe(2)
   })
 
   it('flies each rating out the way it was dragged', () => {

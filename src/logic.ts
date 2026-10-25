@@ -21,11 +21,11 @@ export function classifySwipe(dx: number, dy: number, threshold = SWIPE_THRESHOL
 }
 
 /**
- * Rating tab: the eight directions are the ratings 1 to 8. Higher on the screen is better, and at
- * the same height right is one more than left (↑ 8, ↗ 7, ↖ 6, → 5, ← 4, ↘ 3, ↙ 2, ↓ 1). Next to each
- * other the ratings differ by 2 at most, so a drag slightly off its direction stays close.
+ * Rating tab: the eight directions are the ratings 1 to 8, like a dial: 8 straight up, then one
+ * less at each step clockwise (↑ 8, ↗ 7, → 6, ↘ 5, ↓ 4, ↙ 3, ← 2, ↖ 1). Indexed like COMPASS,
+ * counter-clockwise from the right.
  */
-const RATE_COMPASS = [5, 7, 8, 6, 4, 2, 1, 3]
+const RATE_COMPASS = [6, 7, 8, 1, 2, 3, 4, 5]
 
 export function classifyRateSwipe(dx: number, dy: number, threshold = SWIPE_THRESHOLD): number | null {
   if (Math.hypot(dx, dy) < threshold) return null

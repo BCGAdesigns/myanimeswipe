@@ -139,7 +139,7 @@ export function Settings({ onClose, onOpenPrefs, onOpenGuide }: Props) {
         </ul>
         <p>No teclado: setas, A assistindo, P pausa, L larguei, N não gostei, G gostei, F favorito e Z desfaz.</p>
         <h4 className="title-section">Na aba Avaliar</h4>
-        <p>Arraste o título na direção da nota: quanto mais alto, maior a nota; na mesma altura, a direita vale um a mais.</p>
+        <p>Arraste o título na direção da nota: 8 para cima e a nota cai um a cada passo no sentido horário.</p>
         <ul className="gesture-help">
           <li>
             <b>↑</b> 8
@@ -148,22 +148,22 @@ export function Settings({ onClose, onOpenPrefs, onOpenGuide }: Props) {
             <b>↗</b> 7
           </li>
           <li>
-            <b>↖</b> 6
+            <b>→</b> 6
           </li>
           <li>
-            <b>→</b> 5
+            <b>↘</b> 5
           </li>
           <li>
-            <b>←</b> 4
+            <b>↓</b> 4
           </li>
           <li>
-            <b>↘</b> 3
+            <b>↙</b> 3
           </li>
           <li>
-            <b>↙</b> 2
+            <b>←</b> 2
           </li>
           <li>
-            <b>↓</b> 1
+            <b>↖</b> 1
           </li>
           <li>
             <b>2×</b> Confirma a sugestão
