@@ -26,10 +26,19 @@ O workflow `.github/workflows/ci.yml` roda testes e build em todo push.
 
 `dist/` é estático e usa caminhos relativos, então também serve em outros hosts (Netlify, GitHub Pages) sem mudanças.
 
+## Sincronização (Supabase)
+
+Opcional: sem as variáveis abaixo o app roda só local. Com elas, aparece "Conta e sincronização" nas Configurações (login por link no e-mail).
+
+* Projeto Supabase `myanimeswipe` (região São Paulo). O esquema está em `supabase/migrations/`.
+* Variáveis de build (já cadastradas na Vercel; para rodar local, copie `.env.example` para `.env.local`): `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`. As duas são públicas por design; quem protege os dados são as regras RLS da tabela.
+* No painel do Supabase, **Authentication → URL Configuration → Site URL** precisa ser o endereço do app, para o link do e-mail voltar para ele.
+
 ## Estrutura
 
 * `src/logic.ts`: regras puras (classificação dos gestos, baralho, fila de notas), coberto por testes.
 * `src/sources/anilist.ts`: consulta GraphQL e conversão para o modelo genérico `Media`.
-* `src/db.ts`: IndexedDB (catálogo, animes, swipes e notas).
+* `src/db.ts`: IndexedDB (catálogo, animes, swipes, notas e a fila de alterações a sincronizar).
+* `src/sync/`: motor de sincronização (coberto por testes), cliente Supabase e o hook de login.
 * `src/store.tsx`: estado do app, desfazer, exportar/importar.
 * `src/components/`: abas (Descobrir, Avaliar, Para você, Listas) e cards.

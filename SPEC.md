@@ -25,8 +25,14 @@ App estilo Tinder para catalogar animes: marcar o que já viu, o que quer ver e 
 
 ## Persistência
 
-* Só no aparelho (IndexedDB). Sem conta, sem nuvem.
-* Exportar/importar JSON nas configurações, como backup.
+* Local first: tudo é salvo no aparelho (IndexedDB) na hora, e funciona offline.
+* Com conta, sincroniza com o Supabase (projeto `myanimeswipe`, São Paulo, plano grátis): envia as alterações pendentes e baixa o que mudou desde a última sincronização. Roda ao entrar, ao voltar para o app, ao recuperar a conexão e alguns segundos depois de cada alteração.
+* Conflito entre aparelhos: vale a alteração mais recente de cada anime (`rev`, horário da alteração no aparelho). Remoções viram lápides para propagar.
+* Cada linha guarda um resumo do anime (título, capa) para outro aparelho conseguir mostrar sem buscar de novo.
+* Login por link no e-mail (Supabase Auth). Tabela `entries` com RLS: cada conta só lê e grava as próprias linhas, já pronta para várias contas.
+* Limite do e-mail padrão do Supabase: 2 por hora, só para membros da organização. Para abrir para outras pessoas, configurar um SMTP próprio.
+* Sem conta, o app continua só local.
+* Exportar/importar JSON nas configurações, como backup extra.
 * Importar substitui os registros com o mesmo anime e mantém os outros. **ASSUMPTION**
 
 ## Gestos (iguais em todas as abas de swipe)
@@ -68,6 +74,7 @@ Motor híbrido, local, custo zero:
 ## Roadmap
 
 * **Fase 1**: PWA, catálogo AniList, 6 gestos, aba Avaliar, aba Listas, persistência local, exportar/importar, deploy na Vercel.
+* **Fase 1.5**: conta por link no e-mail e sincronização entre aparelhos (Supabase).
 * **Fase 2**: aba Para você com motor híbrido.
 * **Fase 3**: IA reordenando e explicando.
 * **Futuro**: séries e animação ocidental via TMDB.

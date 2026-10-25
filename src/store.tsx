@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import * as db from './db'
 import { applyAction } from './logic'
 import { fetchCatalogPage, RateLimitError } from './sources/anilist'
+import { revOf, type RemoteChange } from './sync/engine'
+import { useCloudSync, type CloudState } from './sync/useCloudSync'
 import type { Entry, Media, SwipeAction } from './types'
 
 interface UndoStep {
@@ -35,6 +37,10 @@ interface Store {
   exportData: () => ExportFile
   importData: (file: ExportFile) => Promise<number>
   resetAll: () => Promise<void>
+  cloud: CloudState
+  signIn: (email: string) => Promise<void>
+  signOut: () => Promise<void>
+  syncNow: () => void
 }
 
 const Ctx = createContext<Store | null>(null)
@@ -61,6 +67,31 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   entriesRef.current = entries
   const loadingRef = useRef(false)
 
+  // Remote changes already passed the IndexedDB check; re-check against state in case of a
+  // local change made while the sync was in flight.
+  const applyRemote = useCallback((changes: RemoteChange[]) => {
+    setEntries((m) => {
+      const next = new Map(m)
+      for (const change of changes) {
+        const current = next.get(change.mediaId)
+        if (current && revOf(current) >= change.rev) continue
+        if (change.entry) next.set(change.mediaId, change.entry)
+        else next.delete(change.mediaId)
+      }
+      return next
+    })
+    const snapshots = changes.flatMap((c) => (c.media ? [c.media] : []))
+    if (snapshots.length) {
+      setMedia((m) => {
+        const copy = new Map(m)
+        for (const item of snapshots) if (!copy.has(item.id)) copy.set(item.id, item)
+        return copy
+      })
+    }
+  }, [])
+
+  const { state: cloud, schedule, signIn, signOut, syncNow } = useCloudSync(applyRemote)
+
   useEffect(() => {
     db.loadAll()
       .then((data) => {
@@ -72,11 +103,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .finally(() => setReady(true))
   }, [])
 
-  const writeEntry = useCallback((entry: Entry, prev: Entry | undefined) => {
-    setEntries((m) => new Map(m).set(entry.mediaId, entry))
-    setUndoStack((s) => [...s.slice(-49), { mediaId: entry.mediaId, prev }])
-    db.putEntry(entry).catch((e) => setError(`Falha ao salvar: ${String(e)}`))
-  }, [])
+  const writeEntry = useCallback(
+    (entry: Entry, prev: Entry | undefined) => {
+      const stamped = { ...entry, rev: Date.now() }
+      setEntries((m) => new Map(m).set(stamped.mediaId, stamped))
+      setUndoStack((s) => [...s.slice(-49), { mediaId: stamped.mediaId, prev }])
+      db.saveLocalEntries([stamped])
+        .then(() => schedule())
+        .catch((e) => setError(`Falha ao salvar: ${String(e)}`))
+    },
+    [schedule],
+  )
 
   const swipe = useCallback<Store['swipe']>(
     (mediaId, action, via) => {
@@ -103,32 +140,39 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [writeEntry],
   )
 
-  const removeEntry = useCallback<Store['removeEntry']>((mediaId) => {
-    const prev = entriesRef.current.get(mediaId)
-    if (!prev) return
-    setEntries((m) => {
-      const next = new Map(m)
-      next.delete(mediaId)
-      return next
-    })
-    setUndoStack((s) => [...s.slice(-49), { mediaId, prev }])
-    db.deleteEntry(mediaId).catch((e) => setError(`Falha ao remover: ${String(e)}`))
-  }, [])
+  const removeEntry = useCallback<Store['removeEntry']>(
+    (mediaId) => {
+      const prev = entriesRef.current.get(mediaId)
+      if (!prev) return
+      setEntries((m) => {
+        const next = new Map(m)
+        next.delete(mediaId)
+        return next
+      })
+      setUndoStack((s) => [...s.slice(-49), { mediaId, prev }])
+      db.removeLocalEntry(mediaId, Date.now())
+        .then(() => schedule())
+        .catch((e) => setError(`Falha ao remover: ${String(e)}`))
+    },
+    [schedule],
+  )
 
   const undo = useCallback<Store['undo']>(() => {
     const step = undoStack[undoStack.length - 1]
     if (!step) return null
     setUndoStack((s) => s.slice(0, -1))
+    // Restoring is a new change: re-stamp it so it also wins over the cloud copy.
+    const restored = step.prev && { ...step.prev, rev: Date.now() }
     setEntries((m) => {
       const next = new Map(m)
-      if (step.prev) next.set(step.mediaId, step.prev)
+      if (restored) next.set(step.mediaId, restored)
       else next.delete(step.mediaId)
       return next
     })
-    const persist = step.prev ? db.putEntry(step.prev) : db.deleteEntry(step.mediaId)
-    persist.catch((e) => setError(`Falha ao desfazer: ${String(e)}`))
+    const persist = restored ? db.saveLocalEntries([restored]) : db.removeLocalEntry(step.mediaId, Date.now())
+    persist.then(() => schedule()).catch((e) => setError(`Falha ao desfazer: ${String(e)}`))
     return step.mediaId
-  }, [undoStack])
+  }, [undoStack, schedule])
 
   const loadMore = useCallback(async () => {
     const cat = catalogRef.current
@@ -179,8 +223,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     if (file?.app !== 'myanimeswipe' || file.version !== 1 || !Array.isArray(file.entries)) {
       throw new Error('Arquivo não é um backup do MyAnimeSwipe.')
     }
+    const now = Date.now()
+    const imported = file.entries.map((e) => ({ ...e, rev: now }))
     await db.saveMedia(file.media ?? [])
-    await db.putEntries(file.entries)
+    await db.saveLocalEntries(imported)
     setMedia((m) => {
       const copy = new Map(m)
       for (const item of file.media ?? []) copy.set(item.id, item)
@@ -188,12 +234,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     })
     setEntries((m) => {
       const copy = new Map(m)
-      for (const e of file.entries) copy.set(e.mediaId, e)
+      for (const e of imported) copy.set(e.mediaId, e)
       return copy
     })
     setUndoStack([])
-    return file.entries.length
-  }, [])
+    schedule()
+    return imported.length
+  }, [schedule])
 
   const resetAll = useCallback(async () => {
     await db.clearAll()
@@ -201,7 +248,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setEntries(new Map())
     setCatalog({ order: [], nextPage: 1, hasNextPage: true })
     setUndoStack([])
-  }, [])
+    // When signed in, the cloud copy comes back with the next pull.
+    schedule(0)
+  }, [schedule])
 
   return (
     <Ctx.Provider
@@ -222,6 +271,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         exportData,
         importData,
         resetAll,
+        cloud,
+        signIn,
+        signOut,
+        syncNow,
       }}
     >
       {children}

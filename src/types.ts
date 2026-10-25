@@ -42,4 +42,6 @@ export interface Entry {
   skippedAt?: number
   via: 'discover' | 'recs'
   updatedAt: number
+  /** Time of the last local change (ms); last write wins when syncing. Absent on pre-sync records. */
+  rev?: number
 }

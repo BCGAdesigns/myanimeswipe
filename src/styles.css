@@ -585,3 +585,35 @@ nav .count {
   padding: 6px 10px;
   font-size: 0.82rem;
 }
+
+/* Cloud sync */
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cloud-status {
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+
+.cloud-status.error {
+  color: #fca5a5;
+}
+
+.cloud input {
+  flex: 1 1 200px;
+  min-width: 0;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.cloud strong {
+  color: var(--text);
+}

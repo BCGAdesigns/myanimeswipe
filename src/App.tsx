@@ -10,7 +10,7 @@ import { useStore } from './store'
 type Tab = 'discover' | 'rate' | 'recs' | 'lists'
 
 export function App() {
-  const { entries, error, catalog } = useStore()
+  const { entries, error, catalog, cloud } = useStore()
   const [tab, setTab] = useState<Tab>('discover')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const pending = useMemo(() => rateQueue(entries).length, [entries])
@@ -19,13 +19,27 @@ export function App() {
     <div className="app">
       <header>
         <h1>MyAnimeSwipe</h1>
-        <button className="icon-btn" aria-label="Configurações" onClick={() => setSettingsOpen(true)}>
-          ⚙
-        </button>
+        <div className="header-actions">
+          {cloud.email && (
+            <button
+              className={`icon-btn cloud-status ${cloud.status}`}
+              aria-label="Sincronização"
+              title={cloud.status === 'error' ? (cloud.message ?? 'Erro ao sincronizar') : 'Sincronizado com a nuvem'}
+              onClick={() => setSettingsOpen(true)}
+            >
+              {cloud.status === 'syncing' ? '⟳' : cloud.status === 'error' ? '⚠' : '☁'}
+            </button>
+          )}
+          <button className="icon-btn" aria-label="Configurações" onClick={() => setSettingsOpen(true)}>
+            ⚙
+          </button>
+        </div>
       </header>
 
       {/* Errors with cards still on screen would otherwise go unnoticed. */}
       {error && catalog.order.length > 0 && <div className="toast">{error}</div>}
+      {/* A failed magic link lands here signed out; surface it without opening settings. */}
+      {cloud.status === 'signed-out' && cloud.message && <div className="toast">{cloud.message}</div>}
 
       <main>
         {tab === 'discover' && <DiscoverTab />}

@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
 import { useStore, type ExportFile } from '../store'
+import { CloudSection } from './CloudSection'
 
 export function Settings({ onClose }: { onClose: () => void }) {
-  const { entries, exportData, importData, resetAll } = useStore()
+  const { entries, exportData, importData, resetAll, cloud } = useStore()
   const [message, setMessage] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -29,7 +30,10 @@ export function Settings({ onClose }: { onClose: () => void }) {
   }
 
   const doReset = async () => {
-    if (!window.confirm('Apagar todos os swipes, notas e o catálogo salvo neste aparelho? Não dá para desfazer.')) return
+    const question = cloud.email
+      ? 'Apagar todos os swipes, notas e o catálogo salvo neste aparelho? A cópia da nuvem continua e volta na próxima sincronização.'
+      : 'Apagar todos os swipes, notas e o catálogo salvo neste aparelho? Não dá para desfazer.'
+    if (!window.confirm(question)) return
     await resetAll()
     setMessage('Tudo apagado.')
   }
@@ -42,8 +46,14 @@ export function Settings({ onClose }: { onClose: () => void }) {
           Já vi {counts.seen} · Quero ver {counts.want} · Não quero {counts.reject} · Pulados {counts.skip}
         </p>
 
+        <CloudSection />
+
         <h3>Backup</h3>
-        <p>Seus dados ficam só neste aparelho. Exporte de vez em quando para não perder nada.</p>
+        <p>
+          {cloud.email
+            ? 'Um arquivo extra, para guardar fora da nuvem.'
+            : 'Sem conta, seus dados ficam só neste aparelho. Exporte de vez em quando para não perder nada.'}
+        </p>
         <div className="row">
           <button onClick={doExport}>Exportar JSON</button>
           <button onClick={() => fileRef.current?.click()}>Importar JSON</button>
