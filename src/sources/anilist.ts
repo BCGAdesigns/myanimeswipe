@@ -61,6 +61,14 @@ query Recs($ids: [Int]) {
   }
 }`
 
+const SEARCH_QUERY = `
+query Search($q: String) {
+  Page(perPage: 15) {
+    media(search: $q, type: ANIME, isAdult: false, sort: SEARCH_MATCH) {${MEDIA_FIELDS}
+    }
+  }
+}`
+
 interface RawMedia {
   id: number
   idMal: number | null
@@ -181,6 +189,11 @@ export async function fetchCatalogPage(page: number, prefs: Preferences): Promis
     media: prefs.streamingOnly && !prefs.providers.length ? media.filter((m) => m.streams?.length) : media,
     hasNextPage: data.Page.pageInfo.hasNextPage,
   }
+}
+
+export async function searchAnime(q: string): Promise<Media[]> {
+  const data = await post(SEARCH_QUERY, { q })
+  return (data.Page.media as RawMedia[]).filter(usable).map(toMedia)
 }
 
 export interface Recommendation {

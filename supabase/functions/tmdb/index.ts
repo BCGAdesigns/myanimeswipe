@@ -24,6 +24,7 @@ const ALLOWED_PATHS = [
   /^\/(movie|tv)\/\d+\/recommendations$/,
   /^\/genre\/(movie|tv)\/list$/,
   /^\/watch\/providers\/(movie|tv)$/,
+  /^\/search\/multi$/,
 ];
 
 // Browsers on other sites can't use the proxy; scripts can spoof Origin, so this is not auth.

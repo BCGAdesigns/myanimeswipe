@@ -47,6 +47,8 @@ interface Store {
   error: string | null
   canUndo: boolean
   swipe: (mediaId: string, action: SwipeAction, via: Entry['via']) => void
+  /** Classifies a title that may not be in any catalog yet (search, a friend's list). */
+  classify: (m: Media, action: SwipeAction, via: Entry['via']) => void
   rate: (mediaId: string, rating: number) => void
   skipRating: (mediaId: string) => void
   /** Deletes the record so the card returns to the deck as unseen. */
@@ -223,6 +225,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       writeEntry(applyAction(mediaId, action, via, Date.now()), entriesRef.current.get(mediaId))
     },
     [writeEntry],
+  )
+
+  const classify = useCallback<Store['classify']>(
+    (m, action, via) => {
+      if (!mediaRef.current.has(m.id)) {
+        addMedia([m])
+        db.saveMedia([m]).catch((e) => setError(`Falha ao salvar: ${errorText(e)}`))
+      }
+      swipe(m.id, action, via)
+    },
+    [addMedia, swipe],
   )
 
   const rate = useCallback<Store['rate']>(
@@ -425,6 +438,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         error,
         canUndo: undoStack.length > 0,
         swipe,
+        classify,
         rate,
         skipRating,
         removeEntry,

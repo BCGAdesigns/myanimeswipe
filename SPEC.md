@@ -71,7 +71,24 @@ Bússola de 8 direções (fatias iguais de 45°) mais 2 gestos de toque. Esquerd
 1. **Descobrir**: baralho misto com os tipos escolhidos, um de cada tipo por vez (anime, filme, série, desenho), continuando depois do tipo do último cartão marcado. Desenhos alternam séries e filmes. Cada fonte busca a próxima página quando restam menos de 10 cartões dela.
 2. **Avaliar**: fila dos "já vi" sem nota confirmada. Grade de 0 a 10 com cor por nota; a nota sugerida aparece destacada. Um toque salva e avança. Swipe para a esquerda pula, para a direita confirma. Lista dos já avaliados, com toque para reavaliar.
 3. **Para você**: recomendações no mesmo baralho e com os mesmos gestos, cada cartão com o motivo ("Porque você favoritou X").
-4. **Listas**: Quero ver, Assistindo, Em pausa, Larguei, Favoritos e Não quero, com ações e desfazer.
+4. **Listas**: Quero ver, Assistindo, Em pausa, Larguei, Favoritos e Não quero, com ações e desfazer. Tocar num título abre a ficha dele.
+5. **Amigos**: match com amigos (abaixo).
+
+Na lista de avaliados (aba Avaliar) e nas Listas dá para ordenar por mais recentes, maior nota, menor nota, título, lançamento ou nota da comunidade, e filtrar por tipo (e por favoritos, nos avaliados). A escolha fica salva no aparelho.
+
+## Busca
+
+* Lupa no topo: busca por nome no AniList (anime) e no TMDB (`/search/multi`, filmes, séries e desenhos; pessoas e animação japonesa ficam de fora), mais os títulos que já estão na sua biblioteca (sem diferenciar acentos). Espera uma pausa na digitação (0,35 s) antes de consultar.
+* Tocar num resultado abre a ficha do título: capa, sinopse, links, situação na sua biblioteca, todas as ações de classificação e, se já viu, a nota de 0 a 10 e o favorito. Registros feitos assim levam `via = 'search'`.
+* As últimas 6 buscas ficam salvas no aparelho.
+
+## Match com amigos
+
+* Quem tem conta cria um **código de amigo** (10 letras e números, sem caracteres que se confundem) e manda o link `?amigo=CÓDIGO` ou o código. Pode escolher um nome para aparecer e parar de compartilhar quando quiser (o código deixa de funcionar).
+* Qualquer pessoa, mesmo sem conta, compara a própria lista com a de quem compartilhou: compatibilidade de gosto, "Vocês dois querem ver", "Fulano recomenda para você", "Os dois amaram", "Você recomenda para Fulano" e "Vocês discordam". Tocar num pôster abre a ficha para classificar.
+* Compatibilidade: com 3 ou mais títulos avaliados pelos dois, 100 menos 10 vezes a diferença média das notas; senão, a proporção de concordância entre os sinais fortes (gostei ou não gostei) dos dois, também com no mínimo 3. **ASSUMPTION**: fórmula simples, escolhida por ser fácil de explicar.
+* Servidor: tabela `shares` (código e nome, só o dono mexe) e a função `shared_list(código)`, que devolve as listas de quem compartilha (sem pulados, sem e-mail, sem sinopse). Segurar o código é a permissão, por isso a função roda com privilégio do banco e aceita chamadas sem login; o alerta do Supabase sobre isso é esperado.
+* Amigos comparados ficam salvos no aparelho, com a última compatibilidade.
 
 ## Recomendações (fase 2, sem IA)
 
@@ -101,5 +118,6 @@ Motor local, custo zero (`src/recs/engine.ts`):
 * **Fase 1.6** (feito): bússola de 8 gestos + 2 toques e segurar; status no padrão MyAnimeList e favoritos.
 * **Fase 2** (feito): aba Para você com motor híbrido.
 * **Fase 2.5** (feito): nome WatchMatch, filmes, séries e desenhos via TMDB, primeira tela, preferências e filtros PRO, visual novo, termos e privacidade, excluir conta.
+* **Fase 2.6** (feito): busca, ficha do título, ordenação e filtros nos avaliados e nas listas, match com amigos por código, login também por código de 6 dígitos.
 * **Fase 3**: IA reordenando e explicando.
 * **Futuro**: cobrança dos filtros PRO, SMTP próprio para abrir o login a qualquer pessoa.

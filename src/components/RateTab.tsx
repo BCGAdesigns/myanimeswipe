@@ -1,7 +1,9 @@
 import { Check, ChevronLeft, Star, Undo2 } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
+import { arrangeEntries } from '../library'
 import { classifyRateSwipe, rateQueue, ratedList } from '../logic'
 import { useStore } from '../store'
+import { LibraryControls, usePersistentView } from './LibraryControls'
 import { Cover, coverThumb, metaLine } from './MediaCard'
 import { SwipeCard, type ActionStyle, type SwipeCardHandle } from './SwipeCard'
 
@@ -20,8 +22,10 @@ export function RateTab() {
   const cardRef = useRef<SwipeCardHandle<RateAction>>(null)
   const topRef = useRef<HTMLDivElement>(null)
 
+  const [view, setView] = usePersistentView('rated')
   const queue = useMemo(() => rateQueue(entries), [entries])
-  const rated = useMemo(() => ratedList(entries), [entries])
+  const allRated = useMemo(() => ratedList(entries), [entries])
+  const rated = useMemo(() => arrangeEntries(allRated, media, view), [allRated, media, view])
 
   const current = editingId ? entries.get(editingId) : queue[0]
   const currentMedia = current ? media.get(current.mediaId) : undefined
@@ -129,9 +133,18 @@ export function RateTab() {
         )}
       </div>
 
-      {rated.length > 0 && (
+      {allRated.length > 0 && (
         <section className="rated">
-          <h3>Avaliados ({rated.length})</h3>
+          <h3>
+            Avaliados <span className="muted">{allRated.length}</span>
+          </h3>
+          <LibraryControls
+            view={view}
+            onChange={setView}
+            sorts={['recent', 'rating-desc', 'rating-asc', 'title', 'year', 'score']}
+            showFavorites
+          />
+          {rated.length === 0 && <p className="muted small">Nenhum avaliado com esse filtro.</p>}
           <ul>
             {rated.map((e) => {
               const m = media.get(e.mediaId)

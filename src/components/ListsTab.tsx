@@ -1,9 +1,12 @@
 import { Bookmark, Check, LogOut, Pause, Play, RotateCcw, Star, Trash, Undo2 } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
+import { arrangeEntries } from '../library'
 import { favoriteList, statusList } from '../logic'
 import { useStore } from '../store'
-import type { Entry, SwipeAction } from '../types'
+import type { Entry, Media, SwipeAction } from '../types'
+import { LibraryControls, usePersistentView } from './LibraryControls'
 import { Cover, coverThumb, metaLine } from './MediaCard'
+import { TitleSheet } from './TitleSheet'
 
 type ListKind = 'want' | 'watching' | 'paused' | 'dropped' | 'favorite' | 'reject'
 
@@ -25,6 +28,8 @@ interface ItemAction {
 export function ListsTab() {
   const { entries, media, swipe, removeEntry, toggleFavorite, undo, canUndo } = useStore()
   const [kind, setKind] = useState<ListKind>('want')
+  const [view, setView] = usePersistentView('lists')
+  const [open, setOpen] = useState<Media | null>(null)
 
   const lists = useMemo<Record<ListKind, Entry[]>>(
     () => ({
@@ -67,7 +72,7 @@ export function ListsTab() {
     ],
   }
 
-  const list = lists[kind]
+  const list = useMemo(() => arrangeEntries(lists[kind], media, view), [lists, kind, media, view])
   const current = LISTS.find((l) => l.kind === kind)!
 
   return (
@@ -86,7 +91,13 @@ export function ListsTab() {
         </button>
       </div>
 
-      {list.length === 0 ? (
+      {lists[kind].length > 0 && (
+        <LibraryControls view={view} onChange={setView} sorts={['recent', 'title', 'year', 'score']} />
+      )}
+
+      {lists[kind].length > 0 && list.length === 0 ? (
+        <p className="muted small">Nenhum título desse tipo nesta lista.</p>
+      ) : list.length === 0 ? (
         <div className="empty-state">
           <p className="empty-icon" aria-hidden>
             {current.icon}
@@ -100,11 +111,13 @@ export function ListsTab() {
             if (!m) return null
             return (
               <li key={e.mediaId}>
-                <Cover src={coverThumb(m)} lazy />
+                <button className="item-cover" onClick={() => setOpen(m)} aria-label={`Abrir ${m.title}`}>
+                  <Cover src={coverThumb(m)} lazy />
+                </button>
                 <div className="item-body">
-                  <a className="item-title" href={m.links.site ?? m.links.mal} target="_blank" rel="noreferrer">
+                  <button className="item-title" onClick={() => setOpen(m)}>
                     {e.favorite && <Star className="fav-star" size={14} fill="currentColor" />} {m.title}
-                  </a>
+                  </button>
                   <span className="meta">{metaLine(m, true)}</span>
                   {m.links.crunchyroll && (
                     <a className="cr-link" href={m.links.crunchyroll} target="_blank" rel="noreferrer">
@@ -124,6 +137,7 @@ export function ListsTab() {
           })}
         </ul>
       )}
+      {open && <TitleSheet media={open} via="discover" onClose={() => setOpen(null)} />}
     </div>
   )
 }

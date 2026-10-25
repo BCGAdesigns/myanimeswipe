@@ -30,7 +30,7 @@ O workflow `.github/workflows/ci.yml` roda testes e build em todo push. `dist/` 
 
 ## Supabase
 
-* Projeto `myanimeswipe` (região São Paulo). Esquema em `supabase/migrations/` (`entries`, `profiles`, função `tmdb_token`).
+* Projeto `myanimeswipe` (região São Paulo). Esquema em `supabase/migrations/` (`entries`, `profiles`, `shares` e as funções `tmdb_token` e `shared_list`).
 * Variáveis de build (já cadastradas na Vercel; para rodar local, copie `.env.example` para `.env.local`): `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY`. As duas são públicas por design; quem protege os dados são as regras RLS.
 * Funções em `supabase/functions/`:
   * `tmdb`: proxy só de leitura para a API do TMDB (sem verificação de JWT, para funcionar sem conta). Lê o token do secret `TMDB_READ_TOKEN` da função ou, se não houver, do Vault (`select vault.create_secret('<token de leitura do TMDB>', 'tmdb_read_token')`). Para trocar a chave, atualize o segredo no Vault; nada no app muda.
@@ -44,11 +44,13 @@ O workflow `.github/workflows/ci.yml` roda testes e build em todo push. `dist/` 
 * `src/prefs.ts` e `src/genres.ts`: preferências, filtros e o vocabulário único de gêneros.
 * `src/sources/`: AniList (`anilist.ts`), TMDB pelo proxy (`tmdb.ts`), serviços de streaming (`providers.ts`) e o baralho misto (`catalog.ts`).
 * `src/recs/engine.ts`: motor de recomendações da fase 2.
+* `src/library.ts`: ordenação, filtros e busca na biblioteca do usuário.
+* `src/friends/`: códigos de amigo e a comparação de listas (match com amigos).
 * `src/db.ts`: IndexedDB (catálogos, títulos, registros, preferências, recomendações e a fila de alterações a sincronizar).
 * `src/sync/`: motor de sincronização, cliente Supabase e o hook de login.
 * `src/store.tsx`: estado do app, desfazer, exportar e importar.
-* `src/components/`: telas (primeira vez, Descobrir, Avaliar, Para você, Listas, preferências, configurações, guia de gestos).
+* `src/components/`: telas (primeira vez, Descobrir, Avaliar, Para você, Listas, Amigos, busca, ficha do título, preferências, configurações, guia de gestos).
 * `public/`: ícones, imagem de compartilhamento, logo do TMDB, Termos de Uso e Política de Privacidade.
 * `scripts/generate-brand-assets.cjs`: gera ícones e a imagem de compartilhamento a partir do desenho do logo (precisa do Playwright).
 
-Testes: `src/**/*.test.ts` cobrem gestos, sincronização, preferências, consultas ao AniList e ao TMDB, baralho misto, filtros locais e recomendações.
+Testes: `src/**/*.test.ts` cobrem gestos, sincronização, preferências, consultas ao AniList e ao TMDB, baralho misto, filtros locais, recomendações, ordenação e busca na biblioteca e a comparação com amigos.

@@ -56,7 +56,8 @@ export interface Entry {
   queuedAt?: number
   /** Order key for skipped cards; they return after the unseen ones. */
   skippedAt?: number
-  via: 'discover' | 'recs'
+  /** Where it was classified: a deck, search, or a friend's list. */
+  via: 'discover' | 'recs' | 'search' | 'friend'
   favorite?: boolean
   updatedAt: number
   /** Time of the last local change (ms); last write wins when syncing. Absent on pre-sync records. */

@@ -176,13 +176,25 @@ export async function fetchDiscoverPage(
   return { media, hasNextPage: data.page < Math.min(data.total_pages, MAX_PAGE) }
 }
 
+/** Titles from a raw result list whose type each item carries (search, recommendations). */
+function mixedResults(results: RawTmdb[], fallbackType: TmdbType | null): Media[] {
+  return results.flatMap((raw) => {
+    const rawType = raw.media_type === 'tv' || raw.media_type === 'movie' ? raw.media_type : fallbackType
+    // People in search results, and Japanese animation (AniList has it), are left out.
+    const kind = rawType && kindOfTmdb(raw, rawType)
+    const media = kind && rawType && toMediaTmdb(raw, rawType, kind)
+    return media ? [media] : []
+  })
+}
+
+/** Movies, series and cartoons matching a text, most relevant first. */
+export async function searchTmdb(q: string): Promise<Media[]> {
+  const data = await get<RawPage>('/search/multi', { query: q, include_adult: 'false', page: 1 })
+  return mixedResults(data.results, null)
+}
+
 /** "If you liked this, watch these", best first (TMDB gives no vote counts here). */
 export async function fetchTmdbRecs(type: TmdbType, id: number): Promise<Media[]> {
   const data = await get<RawPage>(`/${type}/${id}/recommendations`)
-  return data.results.flatMap((raw) => {
-    const rawType: TmdbType = raw.media_type === 'tv' || raw.media_type === 'movie' ? raw.media_type : type
-    const kind = kindOfTmdb(raw, rawType)
-    const media = kind && toMediaTmdb(raw, rawType, kind)
-    return media ? [media] : []
-  })
+  return mixedResults(data.results, type)
 }
