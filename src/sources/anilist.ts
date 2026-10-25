@@ -1,33 +1,62 @@
+import { anilistGenreNames, genreKey } from '../genres'
+import { ALL_ANIME_FORMATS, type Preferences } from '../prefs'
 import type { Media } from '../types'
+import { anilistSites } from './providers'
 
 const ENDPOINT = 'https://graphql.anilist.co'
 
 export const PAGE_SIZE = 50
 
-// isAdult: false only drops hentai on AniList; seinen and ecchi stay in.
+const MEDIA_FIELDS = `
+  id
+  idMal
+  siteUrl
+  title { romaji english }
+  coverImage { extraLarge large color }
+  format
+  episodes
+  seasonYear
+  genres
+  tags { name rank isMediaSpoiler }
+  averageScore
+  description(asHtml: false)
+  isAdult
+  externalLinks { site url type }`
+
+// isAdult: false only drops hentai on AniList; seinen and ecchi stay in (and can be avoided by genre).
 const CATALOG_QUERY = `
-query Catalog($page: Int, $perPage: Int) {
+query Catalog(
+  $page: Int, $perPage: Int, $sort: [MediaSort], $formats: [MediaFormat], $genresNot: [String],
+  $from: FuzzyDateInt, $to: FuzzyDateInt, $minScore: Int, $maxEpisodes: Int, $statusNot: MediaStatus,
+  $licensedBy: [String]
+) {
   Page(page: $page, perPage: $perPage) {
     pageInfo { hasNextPage }
     media(
       type: ANIME
       isAdult: false
-      sort: POPULARITY_DESC
-      format_in: [TV, TV_SHORT, MOVIE, OVA, ONA, SPECIAL]
-    ) {
+      sort: $sort
+      format_in: $formats
+      genre_not_in: $genresNot
+      startDate_greater: $from
+      startDate_lesser: $to
+      averageScore_greater: $minScore
+      episodes_lesser: $maxEpisodes
+      status_not: $statusNot
+      licensedBy_in: $licensedBy
+    ) {${MEDIA_FIELDS}
+    }
+  }
+}`
+
+const RECS_QUERY = `
+query Recs($ids: [Int]) {
+  Page(perPage: 50) {
+    media(id_in: $ids, type: ANIME) {
       id
-      idMal
-      siteUrl
-      title { romaji english }
-      coverImage { extraLarge large color }
-      format
-      episodes
-      seasonYear
-      genres
-      tags { name rank isMediaSpoiler }
-      averageScore
-      description(asHtml: false)
-      externalLinks { site url type }
+      recommendations(sort: RATING_DESC, perPage: 10) {
+        nodes { rating mediaRecommendation {${MEDIA_FIELDS} } }
+      }
     }
   }
 }`
@@ -45,6 +74,7 @@ interface RawMedia {
   tags: { name: string; rank: number; isMediaSpoiler: boolean }[] | null
   averageScore: number | null
   description: string | null
+  isAdult?: boolean | null
   externalLinks: { site: string; url: string; type: string | null }[] | null
 }
 
@@ -70,7 +100,9 @@ export function cleanSynopsis(text: string | null): string | undefined {
 export function toMedia(raw: RawMedia): Media {
   const title = raw.title.english || raw.title.romaji || `#${raw.id}`
   const alt = raw.title.romaji && raw.title.romaji !== title ? raw.title.romaji : undefined
-  const crunchyroll = raw.externalLinks?.find((l) => l.site.toLowerCase() === 'crunchyroll')?.url
+  const links = raw.externalLinks ?? []
+  const crunchyroll = links.find((l) => l.site.toLowerCase() === 'crunchyroll')?.url
+  const streams = [...new Set(links.filter((l) => l.type === 'STREAMING').map((l) => l.site))]
   return {
     id: `anilist:${raw.id}`,
     source: 'anilist',
@@ -83,10 +115,11 @@ export function toMedia(raw: RawMedia): Media {
     format: raw.format ?? undefined,
     year: raw.seasonYear ?? undefined,
     episodes: raw.episodes ?? undefined,
-    genres: raw.genres ?? [],
+    genres: (raw.genres ?? []).map(genreKey),
     tags: (raw.tags ?? []).filter((t) => !t.isMediaSpoiler).map((t) => ({ name: t.name, rank: t.rank })),
     score: raw.averageScore ?? undefined,
     synopsis: cleanSynopsis(raw.description),
+    streams: streams.length ? streams : undefined,
     links: {
       site: raw.siteUrl ?? undefined,
       mal: raw.idMal ? `https://myanimelist.net/anime/${raw.idMal}` : undefined,
@@ -95,11 +128,35 @@ export function toMedia(raw: RawMedia): Media {
   }
 }
 
-export async function fetchCatalogPage(page: number): Promise<{ media: Media[]; hasNextPage: boolean }> {
+const SORT: Record<Preferences['sort'], string> = {
+  popular: 'POPULARITY_DESC',
+  top: 'SCORE_DESC',
+  recent: 'START_DATE_DESC',
+}
+
+/** Turns preferences into AniList filter arguments (its comparisons are strict, hence the ±1). */
+export function catalogVariables(prefs: Preferences, page: number) {
+  return {
+    page,
+    perPage: PAGE_SIZE,
+    sort: [SORT[prefs.sort]],
+    formats: prefs.animeFormats.length ? prefs.animeFormats : ALL_ANIME_FORMATS,
+    genresNot: prefs.avoidGenres.length ? anilistGenreNames(prefs.avoidGenres) : undefined,
+    from: prefs.yearMin ? prefs.yearMin * 10000 : undefined,
+    to: prefs.yearMax ? (prefs.yearMax + 1) * 10000 : undefined,
+    minScore: prefs.minScore ? prefs.minScore - 1 : undefined,
+    maxEpisodes: prefs.maxEpisodes ? prefs.maxEpisodes + 1 : undefined,
+    // "Recent" would otherwise lead with announced titles that have not aired.
+    statusNot: prefs.sort === 'recent' ? 'NOT_YET_RELEASED' : undefined,
+    licensedBy: prefs.providers.length ? anilistSites(prefs.providers) : undefined,
+  }
+}
+
+async function post(query: string, variables: unknown) {
   const res = await fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ query: CATALOG_QUERY, variables: { page, perPage: PAGE_SIZE } }),
+    body: JSON.stringify({ query, variables }),
   })
   if (res.status === 429) {
     throw new RateLimitError(Number(res.headers.get('Retry-After')) || 60)
@@ -108,9 +165,41 @@ export async function fetchCatalogPage(page: number): Promise<{ media: Media[]; 
   if (!res.ok || json.errors) {
     throw new Error(json.errors?.[0]?.message ?? `AniList HTTP ${res.status}`)
   }
-  const pageData = json.data.Page
+  return json.data
+}
+
+const usable = (m: RawMedia | null): m is RawMedia => !!m && !m.isAdult && !!(m.coverImage.extraLarge || m.coverImage.large)
+
+export async function fetchCatalogPage(page: number, prefs: Preferences): Promise<{ media: Media[]; hasNextPage: boolean }> {
+  const variables = catalogVariables(prefs, page)
+  // None of the chosen services carries anime on AniList: nothing to show, rather than everything.
+  if (variables.licensedBy?.length === 0) return { media: [], hasNextPage: false }
+  const data = await post(CATALOG_QUERY, variables)
+  const media = (data.Page.media as RawMedia[]).filter(usable).map(toMedia)
   return {
-    media: (pageData.media as RawMedia[]).filter((m) => m.coverImage.extraLarge || m.coverImage.large).map(toMedia),
-    hasNextPage: pageData.pageInfo.hasNextPage,
+    // AniList can't filter by "has any streaming link"; the services filter above is server side.
+    media: prefs.streamingOnly && !prefs.providers.length ? media.filter((m) => m.streams?.length) : media,
+    hasNextPage: data.Page.pageInfo.hasNextPage,
   }
+}
+
+export interface Recommendation {
+  media: Media
+  /** Community votes for "if you liked the seed, watch this". */
+  votes: number
+}
+
+/** Community recommendations for several anime in one request (validated live: 10 seeds, no complexity error). */
+export async function fetchAnimeRecs(sourceIds: number[]): Promise<Map<number, Recommendation[]>> {
+  const data = await post(RECS_QUERY, { ids: sourceIds })
+  const out = new Map<number, Recommendation[]>()
+  for (const seed of data.Page.media as { id: number; recommendations: { nodes: { rating: number; mediaRecommendation: RawMedia | null }[] } }[]) {
+    out.set(
+      seed.id,
+      seed.recommendations.nodes
+        .filter((n) => usable(n.mediaRecommendation))
+        .map((n) => ({ media: toMedia(n.mediaRecommendation!), votes: Math.max(0, n.rating) })),
+    )
+  }
+  return out
 }

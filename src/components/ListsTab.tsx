@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { favoriteList, statusList } from '../logic'
 import { useStore } from '../store'
 import type { Entry, SwipeAction } from '../types'
-import { metaLine } from './MediaCard'
+import { Cover, coverThumb, metaLine } from './MediaCard'
 
 type ListKind = 'want' | 'watching' | 'paused' | 'dropped' | 'favorite' | 'reject'
 
@@ -12,7 +12,7 @@ const LISTS: { kind: ListKind; label: string; empty: string }[] = [
   { kind: 'paused', label: 'Em pausa', empty: 'Arraste um card para cima e para a esquerda (↖) para pausar.' },
   { kind: 'dropped', label: 'Larguei', empty: 'Arraste um card para baixo e para a esquerda (↙) para os que você largou.' },
   { kind: 'favorite', label: 'Favoritos', empty: 'Segure um card para marcar como favorito.' },
-  { kind: 'reject', label: 'Não quero', empty: 'Os animes arrastados para baixo (↓) aparecem aqui e podem ser restaurados.' },
+  { kind: 'reject', label: 'Não quero', empty: 'Os títulos arrastados para baixo (↓) aparecem aqui e podem ser restaurados.' },
 ]
 
 interface ItemAction {
@@ -92,13 +92,13 @@ export function ListsTab() {
             if (!m) return null
             return (
               <li key={e.mediaId}>
-                <img src={m.cover} alt="" loading="lazy" />
+                <Cover src={coverThumb(m)} lazy />
                 <div className="item-body">
                   <a className="item-title" href={m.links.site ?? m.links.mal} target="_blank" rel="noreferrer">
                     {e.favorite && '⭐ '}
                     {m.title}
                   </a>
-                  <span className="meta">{metaLine(m)}</span>
+                  <span className="meta">{metaLine(m, true)}</span>
                   {m.links.crunchyroll && (
                     <a className="cr-link" href={m.links.crunchyroll} target="_blank" rel="noreferrer">
                       Crunchyroll

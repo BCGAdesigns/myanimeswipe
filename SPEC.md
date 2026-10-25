@@ -1,4 +1,4 @@
-# MyAnimeSwipe, especificação
+# WatchMatch, especificação
 
 Documento de decisões. Tudo aqui foi definido na entrevista inicial; o que estiver marcado como **ASSUMPTION** é escolha minha e pode ser revisto.
 

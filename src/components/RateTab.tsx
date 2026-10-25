@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { classifyRateSwipe, rateQueue, ratedList } from '../logic'
 import { useStore } from '../store'
-import { metaLine } from './MediaCard'
+import { Cover, coverThumb, metaLine } from './MediaCard'
 import { SwipeCard, type ActionStyle, type SwipeCardHandle } from './SwipeCard'
 
 type RateAction = 'confirm' | 'skip'
@@ -67,13 +67,13 @@ export function RateTab() {
                 onAction={onAction}
               >
                 <div className="rate-card">
-                  <img src={currentMedia.cover} alt="" draggable={false} />
+                  <Cover src={currentMedia.cover} />
                   <div>
                     <h2>
                       {current.favorite && '⭐ '}
                       {currentMedia.title}
                     </h2>
-                    <p className="meta">{metaLine(currentMedia)}</p>
+                    <p className="meta">{metaLine(currentMedia, true)}</p>
                     {highlighted !== null && (
                       <p className="suggested">
                         {editingId ? 'Nota atual' : 'Nota sugerida'}: <strong>{highlighted}</strong>
@@ -102,7 +102,7 @@ export function RateTab() {
           </>
         ) : (
           <div className="notice">
-            <p>Nada na fila. Os animes marcados como "já vi" aparecem aqui para receber nota.</p>
+            <p>Nada na fila. Os títulos marcados como já vistos aparecem aqui para receber nota.</p>
             {canUndo && <button onClick={() => undo()}>↺ Desfazer</button>}
           </div>
         )}
@@ -118,7 +118,7 @@ export function RateTab() {
               return (
                 <li key={e.mediaId}>
                   <button onClick={() => startEdit(e.mediaId)}>
-                    <img src={m.cover} alt="" loading="lazy" />
+                    <Cover src={coverThumb(m)} lazy />
                     <span className="rated-title">
                       {e.favorite && '⭐ '}
                       {m.title}

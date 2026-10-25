@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { classifySwipe } from '../logic'
 import { useStore } from '../store'
 import type { Entry, SwipeAction } from '../types'
-import { MediaCard } from './MediaCard'
+import { MediaCard, preloadCover } from './MediaCard'
 import { SwipeCard, type ActionStyle, type SwipeCardHandle } from './SwipeCard'
 
 export const ACTION_STYLES: Record<SwipeAction, ActionStyle & { icon: string }> = {
@@ -87,9 +87,13 @@ interface Props {
   ids: string[]
   via: Entry['via']
   empty: ReactNode
+  /** Shown above the deck while it still has cards (errors from one source, status lines). */
+  banner?: ReactNode
+  /** Recommendation reason per media id. */
+  reasons?: Record<string, string>
 }
 
-export function SwipeDeck({ ids, via, empty }: Props) {
+export function SwipeDeck({ ids, via, empty, banner, reasons }: Props) {
   const { media, swipe, undo, canUndo } = useStore()
   const [details, setDetails] = useState(false)
   const [showPad, setShowPad] = useState(readShowPad)
@@ -110,13 +114,16 @@ export function SwipeDeck({ ids, via, empty }: Props) {
   useEffect(() => {
     for (const id of ids.slice(1, 4)) {
       const m = media.get(id)
-      if (m) new Image().src = m.cover
+      if (m) preloadCover(m.cover)
     }
   }, [ids, media])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.metaKey || e.ctrlKey) return
+      const t = e.target
+      if (t instanceof HTMLInputElement || t instanceof HTMLSelectElement || t instanceof HTMLTextAreaElement) return
+      // Keys belong to an open sheet, not to the cards behind it.
+      if (e.metaKey || e.ctrlKey || document.querySelector('[aria-modal="true"]')) return
       if (e.key === 'z') {
         undo()
         return
@@ -133,10 +140,11 @@ export function SwipeDeck({ ids, via, empty }: Props) {
 
   return (
     <div className="deck-wrap">
+      {banner}
       <div className="deck">
         {below && (
           <div className="swipe-card under" key={`under-${below.id}`}>
-            <MediaCard media={below} showDetails={false} />
+            <MediaCard media={below} showDetails={false} reason={reasons?.[below.id]} />
           </div>
         )}
         {top ? (
@@ -153,7 +161,7 @@ export function SwipeDeck({ ids, via, empty }: Props) {
             }}
             onLongPress={() => cardRef.current?.fling('favorite')}
           >
-            <MediaCard media={top} showDetails={details} />
+            <MediaCard media={top} showDetails={details} reason={reasons?.[top.id]} />
           </SwipeCard>
         ) : (
           <div className="deck-empty">{empty}</div>

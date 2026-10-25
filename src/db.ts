@@ -1,18 +1,23 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
+import type { Preferences } from './prefs'
+import type { RecsCache } from './recs/engine'
+import type { Catalogs } from './sources/catalog'
 import { isNewer, revOf, type LocalStore, type OutboxItem, type RemoteChange, type SyncMeta } from './sync/engine'
 import type { Entry, Media } from './types'
 
-export interface CatalogMeta {
-  /** Media ids in catalog (popularity) order. */
+/** Single anime catalog of versions before TMDB; read once to keep the deck where it was. */
+export interface LegacyCatalog {
   order: string[]
   nextPage: number
   hasNextPage: boolean
 }
 
+type MetaValue = LegacyCatalog | SyncMeta | Catalogs | Preferences | RecsCache
+
 interface SwipeDB extends DBSchema {
   media: { key: string; value: Media }
   entries: { key: string; value: Entry }
-  meta: { key: string; value: CatalogMeta | SyncMeta }
+  meta: { key: string; value: MetaValue }
   /** Local changes not yet pushed to the cloud, one per media (latest wins). */
   outbox: { key: string; value: OutboxItem }
 }
@@ -35,12 +40,15 @@ function db() {
 
 export async function loadAll() {
   const d = await db()
-  const [media, entries, catalog] = await Promise.all([
+  const [media, entries, catalogs, legacyCatalog, prefs, recs] = await Promise.all([
     d.getAll('media'),
     d.getAll('entries'),
-    d.get('meta', 'catalog') as Promise<CatalogMeta | undefined>,
+    d.get('meta', 'catalogs') as Promise<Catalogs | undefined>,
+    d.get('meta', 'catalog') as Promise<LegacyCatalog | undefined>,
+    d.get('meta', 'prefs') as Promise<Preferences | undefined>,
+    d.get('meta', 'recs') as Promise<RecsCache | undefined>,
   ])
-  return { media, entries, catalog: catalog ?? { order: [], nextPage: 1, hasNextPage: true } }
+  return { media, entries, catalogs, legacyCatalog, prefs, recs }
 }
 
 export async function saveMedia(items: Media[]) {
@@ -48,8 +56,16 @@ export async function saveMedia(items: Media[]) {
   await Promise.all([...items.map((m) => tx.store.put(m)), tx.done])
 }
 
-export async function saveCatalog(meta: CatalogMeta) {
-  await (await db()).put('meta', meta, 'catalog')
+export async function saveCatalogs(catalogs: Catalogs) {
+  await (await db()).put('meta', catalogs, 'catalogs')
+}
+
+export async function savePrefs(prefs: Preferences) {
+  await (await db()).put('meta', prefs, 'prefs')
+}
+
+export async function saveRecs(recs: RecsCache) {
+  await (await db()).put('meta', recs, 'recs')
 }
 
 /** Saves records changed on this device and queues them for the cloud. */

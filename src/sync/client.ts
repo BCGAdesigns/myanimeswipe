@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Preferences } from '../prefs'
 import type { RemoteApi, RemoteRow } from './engine'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
@@ -34,6 +35,32 @@ export function supabaseRemote(client: SupabaseClient): RemoteApi {
       const { data, error } = await query.order('synced_at', { ascending: true }).limit(limit)
       if (error) throw new Error(error.message)
       return (data ?? []) as RemoteRow[]
+    },
+  }
+}
+
+/** The user's preferences row (`public.profiles`), last write wins on `updated_at`. */
+export interface ProfilesApi {
+  get(userId: string): Promise<{ preferences: unknown; updated_at: number } | null>
+  put(userId: string, prefs: Preferences): Promise<void>
+}
+
+export function supabaseProfiles(client: SupabaseClient): ProfilesApi {
+  return {
+    async get(userId) {
+      const { data, error } = await client
+        .from('profiles')
+        .select('preferences, updated_at')
+        .eq('user_id', userId)
+        .maybeSingle()
+      if (error) throw new Error(error.message)
+      return data
+    },
+    async put(userId, prefs) {
+      const { error } = await client
+        .from('profiles')
+        .upsert({ user_id: userId, preferences: prefs, updated_at: prefs.updatedAt }, { onConflict: 'user_id' })
+      if (error) throw new Error(error.message)
     },
   }
 }

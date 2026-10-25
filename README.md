@@ -1,6 +1,8 @@
-# MyAnimeSwipe
+# WatchMatch
 
-PWA estilo Tinder para catalogar animes: marque o que já viu, o que quer ver e o que não quer, dê nota de 0 a 10 e (em breve) receba recomendações. Dados do [AniList](https://anilist.co), com selo de Crunchyroll e link para o MyAnimeList.
+PWA estilo Tinder para catalogar anime, filmes, séries e desenhos: marque o que já viu, o que quer ver e o que não quer, dê nota de 0 a 10 e receba recomendações. Dados do [AniList](https://anilist.co) (anime) e do [TMDB](https://www.themoviedb.org) (filmes, séries e desenhos).
+
+O nome do produto fica em `src/brand.ts`; identificadores internos (banco local, backup) continuam `myanimeswipe` para não perder dados.
 
 Decisões de produto e roadmap: [SPEC.md](SPEC.md).
 

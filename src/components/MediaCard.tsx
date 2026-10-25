@@ -1,6 +1,8 @@
-import type { Media } from '../types'
+import { genreLabel } from '../genres'
+import { KIND_BADGES } from '../prefs'
+import type { Media, MediaKind } from '../types'
 
-const FORMAT_LABEL: Record<string, string> = {
+const ANIME_FORMAT: Record<string, string> = {
   TV: 'TV',
   TV_SHORT: 'TV curto',
   MOVIE: 'Filme',
@@ -9,41 +11,102 @@ const FORMAT_LABEL: Record<string, string> = {
   SPECIAL: 'Especial',
 }
 
+export const KIND_SINGULAR: Record<MediaKind, string> = {
+  anime: 'Anime',
+  movie: 'Filme',
+  series: 'Série',
+  cartoon: 'Desenho',
+}
+
 // Links sit inside a draggable card; stop the drag from starting on them.
 const stop = (e: React.PointerEvent) => e.stopPropagation()
 
-export function metaLine(m: Media) {
+function formatPart(m: Media) {
+  if (m.kind === 'anime') return m.format && (ANIME_FORMAT[m.format] ?? m.format)
+  if (m.kind === 'cartoon') return m.format === 'MOVIE' ? 'Filme' : 'Série'
+  // Movies and series: the kind already says it.
+  return undefined
+}
+
+export function formatScore(score: number) {
+  return (score / 10).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+}
+
+/** "TV · 2019 · 26 ep · ★ 8,4"; with the kind first where no badge shows it. */
+export function metaLine(m: Media, withKind = false) {
   return [
-    m.format && (FORMAT_LABEL[m.format] ?? m.format),
+    withKind && KIND_SINGULAR[m.kind],
+    formatPart(m),
     m.year,
     m.episodes && `${m.episodes} ep`,
-    m.score && `★ ${(m.score / 10).toFixed(1)}`,
+    m.score && `★ ${formatScore(m.score)}`,
   ]
     .filter(Boolean)
     .join(' · ')
 }
 
-export function MediaCard({ media, showDetails }: { media: Media; showDetails: boolean }) {
+/** A smaller cover for lists; TMDB serves sizes by path, AniList covers are already light. */
+export function coverThumb(m: Media) {
+  return m.source === 'tmdb' ? m.cover.replace('/t/p/w500/', '/t/p/w185/') : m.cover
+}
+
+// Both CDNs answer CORS requests, which lets the service worker cache covers (see vite.config.ts).
+// Every <img> of a cover must use the same mode, or a cached no-CORS copy can break a CORS load.
+export function Cover({ src, className, lazy }: { src: string; className?: string; lazy?: boolean }) {
   return (
-    <div className="media-card" style={{ backgroundColor: media.color ?? '#222' }}>
-      <img className="media-cover" src={media.cover} alt="" draggable={false} />
-      {media.links.crunchyroll && <span className="badge-cr">Crunchyroll</span>}
-      <div className="media-info">
+    <img
+      className={className}
+      src={src}
+      alt=""
+      crossOrigin="anonymous"
+      decoding="async"
+      loading={lazy ? 'lazy' : undefined}
+      draggable={false}
+    />
+  )
+}
+
+export function preloadCover(src: string) {
+  const img = new Image()
+  img.crossOrigin = 'anonymous'
+  img.src = src
+}
+
+const SOURCE_NAME = { anilist: 'AniList', tmdb: 'TMDB' } as const
+
+interface Props {
+  media: Media
+  showDetails: boolean
+  /** Why it is recommended (Para você tab). */
+  reason?: string
+}
+
+export function MediaCard({ media, showDetails, reason }: Props) {
+  return (
+    <div className="media-card" style={{ backgroundColor: media.color ?? undefined }}>
+      <Cover className="media-cover" src={media.cover} />
+      <div className="card-top">
+        <span className={`kind-badge kind-${media.kind}`}>{KIND_BADGES[media.kind]}</span>
+        {media.links.crunchyroll && <span className="badge-cr">Crunchyroll</span>}
+        {media.score !== undefined && <span className="score-badge">★ {formatScore(media.score)}</span>}
+      </div>
+      <div className={`media-info${showDetails ? ' open' : ''}`}>
+        {reason && <p className="reason">{reason}</p>}
         <h2>{media.title}</h2>
         {media.altTitle && <p className="alt-title">{media.altTitle}</p>}
-        <p className="meta">{metaLine(media)}</p>
+        <p className="meta">{metaLine({ ...media, score: undefined })}</p>
         {showDetails ? (
           <>
-            {media.synopsis && <p className="synopsis">{media.synopsis}</p>}
+            <p className="synopsis">{media.synopsis ?? 'Sem sinopse em português ainda.'}</p>
             <div className="links">
+              {media.links.site && (
+                <a href={media.links.site} target="_blank" rel="noreferrer" onPointerDown={stop}>
+                  {SOURCE_NAME[media.source]}
+                </a>
+              )}
               {media.links.mal && (
                 <a href={media.links.mal} target="_blank" rel="noreferrer" onPointerDown={stop}>
                   MyAnimeList
-                </a>
-              )}
-              {media.links.site && (
-                <a href={media.links.site} target="_blank" rel="noreferrer" onPointerDown={stop}>
-                  AniList
                 </a>
               )}
               {media.links.crunchyroll && (
@@ -54,15 +117,15 @@ export function MediaCard({ media, showDetails }: { media: Media; showDetails: b
             </div>
           </>
         ) : (
-          <div className="genres">
-            {media.genres.slice(0, 4).map((g) => (
-              <span key={g}>{g}</span>
-            ))}
-          </div>
+          media.genres.length > 0 && (
+            <div className="genres">
+              {media.genres.slice(0, 4).map((g) => (
+                <span key={g}>{genreLabel(g)}</span>
+              ))}
+            </div>
+          )
         )}
-        <p className="hint">
-          {showDetails ? 'Toque para fechar' : 'Toque: sinopse · 2 toques: gostei · segurar: favorito'}
-        </p>
+        <p className="hint">{showDetails ? 'Toque para fechar' : 'Toque: sinopse · 2 toques: gostei · segurar: favorito'}</p>
       </div>
     </div>
   )

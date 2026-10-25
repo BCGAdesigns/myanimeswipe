@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { countOutbox, idbStore } from '../db'
-import { cloudConfigured, getClient, supabaseRemote } from './client'
+import { normalizePrefs, type Preferences } from '../prefs'
+import { cloudConfigured, getClient, supabaseProfiles, supabaseRemote, type ProfilesApi } from './client'
 import { runSync, type RemoteChange } from './engine'
 
 export type CloudStatus = 'off' | 'loading' | 'signed-out' | 'idle' | 'syncing' | 'error'
@@ -34,7 +35,23 @@ function linkErrorFromUrl(): string | null {
     : `Não foi possível entrar: ${params.get('error_description')}`
 }
 
-export function useCloudSync(onApplied: (changes: RemoteChange[]) => void) {
+interface Options {
+  onApplied: (changes: RemoteChange[]) => void
+  getPrefs: () => Preferences | null
+  onRemotePrefs: (prefs: Preferences) => void
+}
+
+/** Preferences are one small row: newest copy wins, whichever side it is on. */
+async function syncPrefs(api: ProfilesApi, userId: string, local: Preferences | null, apply: (p: Preferences) => void) {
+  const remote = await api.get(userId)
+  if (remote && remote.updated_at > (local?.updatedAt ?? 0)) {
+    apply(normalizePrefs({ ...(remote.preferences as object), updatedAt: remote.updated_at }))
+  } else if (local && local.updatedAt > (remote?.updated_at ?? -1)) {
+    await api.put(userId, local)
+  }
+}
+
+export function useCloudSync(options: Options) {
   const [state, setState] = useState<CloudState>(() => ({
     status: cloudConfigured ? 'loading' : 'off',
     email: null,
@@ -46,8 +63,8 @@ export function useCloudSync(onApplied: (changes: RemoteChange[]) => void) {
   const running = useRef(false)
   const again = useRef(false)
   const timer = useRef<number | undefined>(undefined)
-  const onAppliedRef = useRef(onApplied)
-  onAppliedRef.current = onApplied
+  const optionsRef = useRef(options)
+  optionsRef.current = options
 
   const sync = useCallback(async function sync() {
     const userId = userIdRef.current
@@ -60,8 +77,12 @@ export function useCloudSync(onApplied: (changes: RemoteChange[]) => void) {
     running.current = true
     setState((s) => ({ ...s, status: 'syncing' }))
     try {
-      const { applied } = await runSync(idbStore, supabaseRemote(await clientPromise), userId)
-      if (applied.length) onAppliedRef.current(applied)
+      const client = await clientPromise
+      const { applied } = await runSync(idbStore, supabaseRemote(client), userId)
+      if (applied.length) optionsRef.current.onApplied(applied)
+      await syncPrefs(supabaseProfiles(client), userId, optionsRef.current.getPrefs(), (p) =>
+        optionsRef.current.onRemotePrefs(p),
+      )
       const pending = await countOutbox()
       setState((s) => ({ ...s, status: 'idle', lastSyncAt: Date.now(), pending, message: null }))
     } catch (e) {
@@ -145,5 +166,14 @@ export function useCloudSync(onApplied: (changes: RemoteChange[]) => void) {
 
   const syncNow = useCallback(() => schedule(0), [schedule])
 
-  return { state, schedule, signIn, signOut, syncNow }
+  /** Deletes the account and its cloud data (edge function `delete-account`), then signs out. */
+  const deleteAccount = useCallback(async () => {
+    const client = await getClient()
+    if (!client) throw new Error('Sincronização não configurada nesta versão.')
+    const { error } = await client.functions.invoke('delete-account', { method: 'POST' })
+    if (error) throw new Error(friendlyError(error))
+    await client.auth.signOut()
+  }, [])
+
+  return { state, schedule, signIn, signOut, syncNow, deleteAccount }
 }

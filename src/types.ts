@@ -1,13 +1,14 @@
-// Generic media model. Anime comes from AniList today; series and western
-// animation (TMDB) plug in later as new `source` / `kind` values.
-export type MediaSource = 'anilist'
-export type MediaKind = 'anime'
+// Generic media model. Anime comes from AniList; movies, series and western
+// cartoons come from TMDB.
+export type MediaSource = 'anilist' | 'tmdb'
+export type MediaKind = 'anime' | 'movie' | 'series' | 'cartoon'
 
 export interface Media {
-  /** Global id, `${source}:${sourceId}`. */
+  /** Global id: `anilist:${id}` or `tmdb:${movie|tv}:${id}` (TMDB reuses ids across types). */
   id: string
   source: MediaSource
   sourceId: number
+  tmdbType?: 'movie' | 'tv'
   kind: MediaKind
   title: string
   altTitle?: string
@@ -21,6 +22,10 @@ export interface Media {
   /** Community score, 0 to 100. */
   score?: number
   synopsis?: string
+  /** ISO 639-1, TMDB titles only. */
+  originalLanguage?: string
+  /** Streaming services that list it (AniList external links). */
+  streams?: string[]
   links: { site?: string; mal?: string; crunchyroll?: string }
 }
 
