@@ -36,6 +36,7 @@ O workflow `.github/workflows/ci.yml` roda testes e build em todo push. `dist/` 
   * `tmdb`: proxy só de leitura para a API do TMDB (sem verificação de JWT, para funcionar sem conta). Lê o token do secret `TMDB_READ_TOKEN` da função ou, se não houver, do Vault (`select vault.create_secret('<token de leitura do TMDB>', 'tmdb_read_token')`). Para trocar a chave, atualize o segredo no Vault; nada no app muda.
   * `delete-account`: exclui a conta de quem chama (com verificação de JWT); as linhas somem em cascata.
 * No painel do Supabase, **Authentication → URL Configuration → Site URL** precisa ser o endereço do app, para o link do e-mail voltar para ele.
+* E-mails de login em português: `supabase/templates/`. No painel, **Authentication → Email Templates**, cole `magic-link.html` em **Magic Link** (assunto: "Seu acesso ao WatchMatch") e `confirmation.html` em **Confirm signup** (assunto: "Confirme seu e-mail no WatchMatch"). Os dois trazem o link e o código de 6 dígitos; o código entra pelo próprio app (Configurações, Conta), o que resolve o app instalado na tela inicial do iPhone, que não recebe o link, e os provedores de e-mail que abrem o link antes da pessoa.
 
 ## Estrutura
 

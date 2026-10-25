@@ -1,0 +1,38 @@
+<!-- Supabase > Authentication > Email Templates > Magic Link. Assunto: Seu acesso ao WatchMatch -->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f1f6;padding:32px 12px;font-family:Arial,Helvetica,sans-serif;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:460px;background:#ffffff;border-radius:20px;padding:32px 28px;">
+        <tr>
+          <td align="center" style="padding-bottom:20px;">
+            <img src="https://myanimeswipe.vercel.app/icon-192.png" width="56" height="56" alt="WatchMatch" style="display:block;border:0;border-radius:14px;" />
+            <div style="margin-top:10px;font-size:20px;font-weight:bold;color:#15171d;">Watch<span style="color:#a855f7;">Match</span></div>
+          </td>
+        </tr>
+        <tr>
+          <td style="font-size:22px;font-weight:bold;color:#15171d;text-align:center;padding-bottom:8px;">Entrar no WatchMatch</td>
+        </tr>
+        <tr>
+          <td style="font-size:15px;line-height:22px;color:#4b5060;text-align:center;padding-bottom:24px;">Toque no botão para entrar e sincronizar suas listas e notas.</td>
+        </tr>
+        <tr>
+          <td align="center" style="padding-bottom:28px;">
+            <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#8b5cf6;color:#ffffff;font-size:16px;font-weight:bold;text-decoration:none;padding:14px 28px;border-radius:14px;">Entrar no WatchMatch</a>
+          </td>
+        </tr>
+        <tr>
+          <td style="font-size:14px;line-height:20px;color:#4b5060;text-align:center;padding-bottom:10px;">Usando o app instalado na tela inicial? Digite este código nele:</td>
+        </tr>
+        <tr>
+          <td align="center" style="padding-bottom:24px;">
+            <div style="display:inline-block;background:#f2f1f6;border-radius:12px;padding:12px 20px;font-size:30px;font-weight:bold;letter-spacing:8px;color:#15171d;font-family:'Courier New',Courier,monospace;">{{ .Token }}</div>
+          </td>
+        </tr>
+        <tr>
+          <td style="font-size:12px;line-height:18px;color:#8a8f9c;text-align:center;">O link e o código valem por pouco tempo e só funcionam uma vez. Se você não pediu este e-mail, pode ignorar: ninguém entra na sua conta sem eles.</td>
+        </tr>
+      </table>
+      <div style="font-size:11px;color:#8a8f9c;padding-top:16px;font-family:Arial,Helvetica,sans-serif;">WatchMatch · myanimeswipe.vercel.app</div>
+    </td>
+  </tr>
+</table>

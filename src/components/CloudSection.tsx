@@ -1,4 +1,4 @@
-import { Cloud, LogOut, Mail, RefreshCw } from 'lucide-react'
+import { Cloud, KeyRound, LogOut, Mail, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { useStore } from '../store'
 import type { CloudState } from '../sync/useCloudSync'
@@ -14,8 +14,9 @@ function statusLine(cloud: CloudState) {
 }
 
 export function CloudSection() {
-  const { cloud, signIn, signOut, syncNow } = useStore()
+  const { cloud, signIn, verifyCode, signOut, syncNow } = useStore()
   const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
   const [sending, setSending] = useState(false)
   const [sentTo, setSentTo] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -30,6 +31,22 @@ export function CloudSection() {
     try {
       await signIn(address)
       setSentTo(address)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const confirm = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!sentTo) return
+    setSending(true)
+    setError(null)
+    try {
+      await verifyCode(sentTo, code.trim())
+      setSentTo(null)
+      setCode('')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -64,13 +81,44 @@ export function CloudSection() {
       ) : sentTo ? (
         <>
           <p>
-            Link enviado para <strong>{sentTo}</strong>. Abra o e-mail neste aparelho e toque no link para entrar.
+            Enviamos um e-mail para <strong>{sentTo}</strong>. Toque no link dele ou digite aqui o código que veio junto
+            (com o app instalado na tela inicial, o código é o caminho mais garantido).
           </p>
-          <button onClick={() => setSentTo(null)}>Usar outro e-mail</button>
+          <form className="row" onSubmit={confirm}>
+            <input
+              className="code-input"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6,10}"
+              maxLength={10}
+              required
+              placeholder="Código"
+              aria-label="Código do e-mail"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+            />
+            <button type="submit" className="primary" disabled={sending || code.length < 6}>
+              <KeyRound /> {sending ? 'Entrando…' : 'Entrar'}
+            </button>
+          </form>
+          <div className="row">
+            <button
+              onClick={() => {
+                setSentTo(null)
+                setCode('')
+                setError(null)
+              }}
+            >
+              Usar outro e-mail
+            </button>
+          </div>
         </>
       ) : (
         <>
-          <p>Entre com seu e-mail para guardar seus dados na nuvem e usar em outros aparelhos. Sem senha: chega um link.</p>
+          <p>
+            Entre com seu e-mail para guardar seus dados na nuvem e usar em outros aparelhos. Sem senha: chega um link e
+            um código.
+          </p>
           <form className="row" onSubmit={send}>
             <input
               type="email"
@@ -81,7 +129,7 @@ export function CloudSection() {
               onChange={(e) => setEmail(e.target.value)}
             />
             <button type="submit" className="primary" disabled={sending}>
-              <Mail /> {sending ? 'Enviando…' : 'Enviar link de acesso'}
+              <Mail /> {sending ? 'Enviando…' : 'Receber acesso por e-mail'}
             </button>
           </form>
         </>

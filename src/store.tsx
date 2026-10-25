@@ -64,6 +64,7 @@ interface Store {
   resetAll: () => Promise<void>
   cloud: CloudState
   signIn: (email: string) => Promise<void>
+  verifyCode: (email: string, code: string) => Promise<void>
   signOut: () => Promise<void>
   syncNow: () => void
   deleteAccount: () => Promise<void>
@@ -160,6 +161,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     state: cloud,
     schedule,
     signIn,
+    verifyCode,
     signOut,
     syncNow,
     deleteAccount: deleteCloudAccount,
@@ -439,6 +441,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         resetAll,
         cloud,
         signIn,
+        verifyCode,
         signOut,
         syncNow,
         deleteAccount,

@@ -20,6 +20,7 @@ const AFTER_CHANGE_MS = 3000
 
 function friendlyError(e: unknown): string {
   const text = e instanceof Error ? e.message : String(e)
+  if (/expired or is invalid|otp_expired|invalid.*token/i.test(text)) return 'Código ou link inválido ou expirado. Peça um novo.'
   if (/rate limit|429/i.test(text)) return 'Limite de envio de e-mails atingido (o plano grátis permite 2 por hora). Tente mais tarde.'
   if (/not authorized|not allowed/i.test(text)) return 'Este e-mail não pode receber o link: o envio padrão do Supabase só atende membros da organização.'
   if (/failed to fetch|network|load failed/i.test(text)) return 'Sem conexão com o servidor. As alterações ficam guardadas e sobem quando a conexão voltar.'
@@ -159,6 +160,15 @@ export function useCloudSync(options: Options) {
     setState((s) => ({ ...s, message: null }))
   }, [])
 
+  /** The 6 digit code in the same e-mail: signs in inside the installed app, where the link can't reach. */
+  const verifyCode = useCallback(async (email: string, code: string) => {
+    const client = await getClient()
+    if (!client) throw new Error('Sincronização não configurada nesta versão.')
+    const { error } = await client.auth.verifyOtp({ email, token: code, type: 'email' })
+    if (error) throw new Error(friendlyError(error))
+    setState((s) => ({ ...s, message: null }))
+  }, [])
+
   const signOut = useCallback(async () => {
     const client = await getClient()
     await client?.auth.signOut()
@@ -175,5 +185,5 @@ export function useCloudSync(options: Options) {
     await client.auth.signOut()
   }, [])
 
-  return { state, schedule, signIn, signOut, syncNow, deleteAccount }
+  return { state, schedule, signIn, verifyCode, signOut, syncNow, deleteAccount }
 }
