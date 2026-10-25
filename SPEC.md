@@ -44,7 +44,7 @@ Lado direito é sempre "já vi", eixo vertical é sempre interesse.
 
 * O rótulo da ação aparece enquanto arrasta; só confirma ao soltar.
 * Botão Desfazer sempre visível.
-* Botões equivalentes abaixo do card e atalhos de teclado (setas, `G` gostei, `N` não gostei, `Z` desfazer).
+* Botões equivalentes abaixo do card e atalhos de teclado (setas, `G` gostei, `N` não gostei, `Z` desfazer). Os botões podem ser ocultados (modo só gestos, preferência salva por aparelho); nesse modo o Desfazer continua visível.
 
 ## Abas
 

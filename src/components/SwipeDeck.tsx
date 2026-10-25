@@ -24,7 +24,26 @@ const KEYS: Record<string, SwipeAction> = {
 }
 
 // 3x3 pad that mirrors the gesture directions; null cells stay empty.
-const PAD: (SwipeAction | 'undo' | null)[] = [null, 'want', 'liked', 'skip', 'undo', 'seen', null, 'reject', 'disliked']
+const PAD: (SwipeAction | 'undo' | 'hide' | null)[] = [null, 'want', 'liked', 'skip', 'undo', 'seen', 'hide', 'reject', 'disliked']
+
+// Per-device UI preference; storage can be unavailable (private mode), so default to visible.
+const PAD_KEY = 'myanimeswipe:showPad'
+
+function readShowPad() {
+  try {
+    return localStorage.getItem(PAD_KEY) !== '0'
+  } catch {
+    return true
+  }
+}
+
+function writeShowPad(show: boolean) {
+  try {
+    localStorage.setItem(PAD_KEY, show ? '1' : '0')
+  } catch {
+    // Preference just won't persist.
+  }
+}
 
 const BUTTON_LABEL: Record<SwipeAction, string> = {
   want: 'Quero ver',
@@ -44,7 +63,13 @@ interface Props {
 export function SwipeDeck({ ids, via, empty }: Props) {
   const { media, swipe, undo, canUndo } = useStore()
   const [details, setDetails] = useState(false)
+  const [showPad, setShowPad] = useState(readShowPad)
   const cardRef = useRef<SwipeCardHandle<SwipeAction>>(null)
+
+  const togglePad = () => {
+    writeShowPad(!showPad)
+    setShowPad(!showPad)
+  }
 
   const topId = ids[0]
   const top = topId ? media.get(topId) : undefined
@@ -100,30 +125,49 @@ export function SwipeDeck({ ids, via, empty }: Props) {
           <div className="deck-empty">{empty}</div>
         )}
       </div>
-      <div className="pad">
-        {PAD.map((cell, i) => {
-          if (cell === null) return <span key={i} />
-          if (cell === 'undo') {
+      {/* Gesture-only mode keeps undo reachable, since diagonal swipes are easy to miss. */}
+      {showPad ? (
+        <div className="pad">
+          {PAD.map((cell, i) => {
+            if (cell === null) return <span key={i} />
+            if (cell === 'hide') {
+              return (
+                <button key={i} className="pad-btn undo" onClick={togglePad}>
+                  Ocultar
+                </button>
+              )
+            }
+            if (cell === 'undo') {
+              return (
+                <button key={i} className="pad-btn undo" disabled={!canUndo} onClick={() => undo()}>
+                  ↺ Desfazer
+                </button>
+              )
+            }
+            const s = ACTION_STYLES[cell]
             return (
-              <button key={i} className="pad-btn undo" disabled={!canUndo} onClick={() => undo()}>
-                ↺ Desfazer
+              <button
+                key={i}
+                className="pad-btn"
+                style={{ color: s.color, borderColor: s.color }}
+                disabled={!top}
+                onClick={() => cardRef.current?.fling(cell)}
+              >
+                {s.icon} {BUTTON_LABEL[cell]}
               </button>
             )
-          }
-          const s = ACTION_STYLES[cell]
-          return (
-            <button
-              key={i}
-              className="pad-btn"
-              style={{ color: s.color, borderColor: s.color }}
-              disabled={!top}
-              onClick={() => cardRef.current?.fling(cell)}
-            >
-              {s.icon} {BUTTON_LABEL[cell]}
-            </button>
-          )
-        })}
-      </div>
+          })}
+        </div>
+      ) : (
+        <div className="pad-compact">
+          <button className="pad-btn undo" disabled={!canUndo} onClick={() => undo()}>
+            ↺ Desfazer
+          </button>
+          <button className="pad-btn undo" onClick={togglePad}>
+            Mostrar botões
+          </button>
+        </div>
+      )}
     </div>
   )
 }

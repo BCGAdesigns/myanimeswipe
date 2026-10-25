@@ -289,6 +289,17 @@ nav .count {
   border-color: var(--surface-2);
 }
 
+.pad-compact {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pad-compact .pad-btn {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+}
+
 .notice {
   text-align: center;
   color: var(--muted);
